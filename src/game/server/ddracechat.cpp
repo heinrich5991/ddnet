@@ -284,9 +284,9 @@ void CGameContext::ConToggleSpec(IConsole::IResult *pResult, void *pUserData)
 
 	if (pPlayer->GetCharacter() == 0)
 	{
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "spec",
-	"You can't spec while you are dead/a spectator.");
-	return;
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "spec",
+		"You can't spec while you are dead/a spectator.");
+		return;
 	}
 	if (pPlayer->m_Paused == CPlayer::PAUSED_SPEC && g_Config.m_SvPauseable)
 	{
@@ -1221,7 +1221,8 @@ void CGameContext::ConRescue(IConsole::IResult *pResult, void *pUserData)
 	if (!pChr)
 		return;
 
-	if (!g_Config.m_SvRescue) {
+	if (!g_Config.m_SvRescue)
+	{
 		pSelf->SendChatTarget(pPlayer->GetCID(), "Rescue is not enabled on this server");
 		return;
 	}
