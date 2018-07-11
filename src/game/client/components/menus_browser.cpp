@@ -157,8 +157,8 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	{
 		CUIRect MsgBox = View;
 
-		if(m_ActivePage == PAGE_INTERNET && ServerBrowser()->IsRefreshingMasters())
-			UI()->DoLabelScaled(&MsgBox, Localize("Refreshing master servers"), 16.0f, 0);
+		if(ServerBrowser()->IsGettingServerlist())
+			UI()->DoLabelScaled(&MsgBox, Localize("Getting serverlist from masterserver"), 16.0f, 0);
 		else if(!ServerBrowser()->NumServers())
 			UI()->DoLabelScaled(&MsgBox, Localize("No servers found"), 16.0f, 0);
 		else if(ServerBrowser()->NumServers() && !NumServers)

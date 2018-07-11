@@ -11,15 +11,9 @@
 
 #define DDNET_INFO "ddnet-info.json"
 
-/*
-	Structure: CServerInfo
-*/
 class CServerInfo
 {
 public:
-	/*
-		Structure: CInfoClient
-	*/
 	class CClient
 	{
 	public:
@@ -114,6 +108,7 @@ public:
 		SET_DDNET_ADD,
 		SET_KOG_ADD,
 		SET_TOKEN,
+		SET_HTTPINFO,
 
 		NETWORK_DDNET = 0,
 		NETWORK_KOG = 1,
@@ -121,8 +116,8 @@ public:
 	};
 
 	virtual void Refresh(int Type) = 0;
+	virtual bool IsGettingServerlist() const = 0;
 	virtual bool IsRefreshing() const = 0;
-	virtual bool IsRefreshingMasters() const = 0;
 	virtual int LoadingProgression() const = 0;
 
 	virtual int NumServers() const = 0;

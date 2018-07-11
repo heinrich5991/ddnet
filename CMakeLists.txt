@@ -1563,7 +1563,8 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   protocol_ex_msgs.h
   ringbuffer.cpp
   ringbuffer.h
-  serverbrowser.cpp
+  serverinfo.cpp
+  serverinfo.h
   snapshot.cpp
   snapshot.h
   storage.cpp
@@ -2176,6 +2177,7 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
     name_ban.cpp
     packer.cpp
     prng.cpp
+    serverinfo.cpp
     str.cpp
     strip_path_and_extension.cpp
     teehistorian.cpp
