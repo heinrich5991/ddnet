@@ -55,7 +55,10 @@
 	#include <errno.h>
 	#include <process.h>
 	#include <shellapi.h>
-	#include <wincrypt.h>
+
+	#define SystemFunction036 NTAPI SystemFunction036
+	#include <ntsecapi.h>
+	#undef SystemFunction036
 #else
 	#error NOT IMPLEMENTED
 #endif
@@ -3266,9 +3269,7 @@ int os_is_winxp_or_lower(unsigned int major, unsigned int minor)
 struct SECURE_RANDOM_DATA
 {
 	int initialized;
-#if defined(CONF_FAMILY_WINDOWS)
-	HCRYPTPROV provider;
-#else
+#if !defined(CONF_FAMILY_WINDOWS)
 	IOHANDLE urandom;
 #endif
 };
@@ -3282,15 +3283,7 @@ int secure_random_init()
 		return 0;
 	}
 #if defined(CONF_FAMILY_WINDOWS)
-	if(CryptAcquireContext(&secure_random_data.provider, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-	{
-		secure_random_data.initialized = 1;
-		return 0;
-	}
-	else
-	{
-		return 1;
-	}
+	return 0;
 #else
 	secure_random_data.urandom = io_open("/dev/urandom", IOFLAG_READ);
 	if(secure_random_data.urandom)
@@ -3349,9 +3342,9 @@ void secure_random_fill(void *bytes, unsigned length)
 		dbg_break();
 	}
 #if defined(CONF_FAMILY_WINDOWS)
-	if(!CryptGenRandom(secure_random_data.provider, length, bytes))
+	if(!RtlGenRandom(bytes, length))
 	{
-		dbg_msg("secure", "CryptGenRandom failed, last_error=%ld", GetLastError());
+		dbg_msg("secure", "RtlGenRandom failed, last_error=%ld", GetLastError());
 		dbg_break();
 	}
 #else
