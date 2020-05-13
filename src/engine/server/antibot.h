@@ -1,6 +1,7 @@
 #ifndef ENGINE_SERVER_ANTIBOT_H
 #define ENGINE_SERVER_ANTIBOT_H
 
+#include <antibot/antibot_data.h>
 #include <engine/antibot.h>
 
 class CAntibot : public IEngineAntibot

@@ -2,7 +2,6 @@
 #define ENGINE_ANTIBOT_H
 
 #include "kernel.h"
-#include "server.h"
 
 class IAntibot : public IInterface
 {

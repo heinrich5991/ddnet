@@ -8,12 +8,10 @@
 
 #include "kernel.h"
 #include "message.h"
-#include "antibot.h"
-#include <antibot/antibot_data.h>
 #include <game/generated/protocol.h>
 #include <engine/shared/protocol.h>
 
-struct CAntibotData;
+struct CAntibotRoundData;
 
 class IServer : public IInterface
 {

@@ -1,5 +1,4 @@
 #include "antibot.h"
-#include <antibot/antibot_data.h>
 #include <antibot/antibot_interface.h>
 
 #include <engine/kernel.h>
