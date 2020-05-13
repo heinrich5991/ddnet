@@ -25,6 +25,7 @@
 
 #include <list>
 
+#include "antibot.h"
 #include "authmanager.h"
 #include "name_ban.h"
 
@@ -91,6 +92,7 @@ class CServer : public IServer
 	class IGameServer *m_pGameServer;
 	class IConsole *m_pConsole;
 	class IStorage *m_pStorage;
+	class IEngineAntibot *m_pAntibot;
 
 #if defined(CONF_SQL)
 	lock m_GlobalSqlLock;
@@ -109,6 +111,7 @@ public:
 	class IGameServer *GameServer() { return m_pGameServer; }
 	class IConsole *Console() { return m_pConsole; }
 	class IStorage *Storage() { return m_pStorage; }
+	class IEngineAntibot *Antibot() { return m_pAntibot; }
 
 	enum
 	{

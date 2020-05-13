@@ -8,6 +8,8 @@
 
 #include "kernel.h"
 #include "message.h"
+#include "antibot.h"
+#include <antibot/antibot_data.h>
 #include <game/generated/protocol.h>
 #include <engine/shared/protocol.h>
 
@@ -240,7 +242,8 @@ public:
 
 	virtual void OnClientEngineJoin(int ClientID) = 0;
 	virtual void OnClientEngineDrop(int ClientID, const char *pReason) = 0;
-	virtual void OnClientEngineMessage(int ClientID, const void *pData, int Size, int Flags) = 0;
+
+	virtual void FillAntibot(CAntibotRoundData *pData) = 0;
 };
 
 extern IGameServer *CreateGameServer();

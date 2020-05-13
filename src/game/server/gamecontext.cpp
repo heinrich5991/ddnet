@@ -131,7 +131,7 @@ bool CGameContext::EmulateBug(int Bug)
 	return m_MapBugs.Contains(Bug);
 }
 
-void CGameContext::FillAntibot(CAntibotData *pData)
+void CGameContext::FillAntibot(CAntibotRoundData *pData)
 {
 	if(!pData->m_Map.m_pTiles)
 	{
@@ -1208,7 +1208,6 @@ void CGameContext::OnClientEngineJoin(int ClientID)
 	{
 		m_TeeHistorian.RecordPlayerJoin(ClientID);
 	}
-	m_Antibot.OnEngineClientJoin(ClientID);
 }
 
 void CGameContext::OnClientEngineDrop(int ClientID, const char *pReason)
@@ -1217,12 +1216,6 @@ void CGameContext::OnClientEngineDrop(int ClientID, const char *pReason)
 	{
 		m_TeeHistorian.RecordPlayerDrop(ClientID, pReason);
 	}
-	m_Antibot.OnEngineClientDrop(ClientID, pReason);
-}
-
-void CGameContext::OnClientEngineMessage(int ClientID, const void *pData, int Size, int Flags)
-{
-	m_Antibot.OnEngineClientMessage(ClientID, pData, Size, Flags);
 }
 
 void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
@@ -2624,7 +2617,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pEngine = Kernel()->RequestInterface<IEngine>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
-	m_Antibot.Init(this);
+	m_pAntibot = Kernel()->RequestInterface<IAntibot>();
+	m_pAntibot->RoundStart(this);
 	m_World.SetGameServer(this);
 	m_Events.SetGameServer(this);
 
@@ -3050,6 +3044,8 @@ void CGameContext::OnShutdown(bool FullShutdown)
 {
 	if (FullShutdown)
 		Score()->OnShutdown();
+
+	Antibot()->RoundEnd();
 
 	if(m_TeeHistorianActive)
 	{

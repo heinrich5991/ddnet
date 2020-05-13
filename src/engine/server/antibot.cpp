@@ -2,25 +2,26 @@
 #include <antibot/antibot_data.h>
 #include <antibot/antibot_interface.h>
 
-#include <game/server/gamecontext.h>
+#include <engine/kernel.h>
+#include <engine/console.h>
+#include <engine/server.h>
 
 #ifdef CONF_ANTIBOT
-static CAntibotData g_Data;
+CAntibot::CAntibot()
+	: m_pGameServer(0)
+{
+}
+CAntibot::~CAntibot()
+{
+	if(m_pGameServer && m_RoundData.m_Map.m_pTiles)
+		free(m_RoundData.m_Map.m_pTiles);
 
-static void Log(const char *pMessage, void *pUser)
-{
-	CGameContext *pGameContext = (CGameContext *)pUser;
-	pGameContext->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antibot", pMessage);
+	AntibotDestroy();
 }
-static void Report(int ClientID, const char *pMessage, void *pUser)
+void CAntibot::Send(int ClientID, const void *pData, int Size, int Flags, void *pUser)
 {
-	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "%d: %s", ClientID, pMessage);
-	Log(aBuf, pUser);
-}
-static void Send(int ClientID, const void *pData, int Size, int Flags, void *pUser)
-{
-	CGameContext *pGameContext = (CGameContext *)pUser;
+	CAntibot *pAntibot = (CAntibot *)pUser;
+
 	int RealFlags = MSGFLAG_VITAL;
 	if(Flags&ANTIBOT_MSGFLAG_NONVITAL)
 	{
@@ -30,41 +31,53 @@ static void Send(int ClientID, const void *pData, int Size, int Flags, void *pUs
 	{
 		RealFlags |= MSGFLAG_FLUSH;
 	}
-	pGameContext->Server()->SendMsgRaw(ClientID, pData, Size, RealFlags);
+	pAntibot->Server()->SendMsgRaw(ClientID, pData, Size, RealFlags);
 }
+void CAntibot::Log(const char *pMessage, void *pUser)
+{
+	CAntibot *pAntibot = (CAntibot *)pUser;
+	pAntibot->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antibot", pMessage);
+}
+void CAntibot::Report(int ClientID, const char *pMessage, void *pUser)
+{
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "%d: %s", ClientID, pMessage);
+	Log(aBuf, pUser);
+}
+void CAntibot::Init()
+{
+	m_pServer = Kernel()->RequestInterface<IServer>();
+	m_pConsole = Kernel()->RequestInterface<IConsole>();
+	dbg_assert(m_pServer && m_pConsole, "antibot requires server and console");
 
-CAntibot::CAntibot()
-	: m_pGameContext(0)
-{
+	mem_zero(&m_CallbackData, sizeof(m_CallbackData));
+	m_CallbackData.m_pfnLog = Log;
+	m_CallbackData.m_pfnReport = Report;
+	m_CallbackData.m_pfnSend = Send;
+	m_CallbackData.m_pUser = this;
+	AntibotSetCallbacks(&m_CallbackData);
 }
-CAntibot::~CAntibot()
+void CAntibot::RoundStart(IGameServer *pGameServer)
 {
-	// Check if `Init` was called. There is no easy way to prevent two
-	// destructors running without an `Init` call in between.
-	if(m_pGameContext)
-	{
-		AntibotDestroy();
-		free(g_Data.m_Map.m_pTiles);
-		g_Data.m_Map.m_pTiles = 0;
-		m_pGameContext = 0;
-	}
-}
-void CAntibot::Init(CGameContext *pGameContext)
-{
-	m_pGameContext = pGameContext;
-	mem_zero(&g_Data, sizeof(g_Data));
-	g_Data.m_Map.m_pTiles = 0;
-	g_Data.m_pfnLog = Log;
-	g_Data.m_pfnReport = Report;
-	g_Data.m_pfnSend = Send;
-	g_Data.m_pUser = m_pGameContext;
-	AntibotInit(&g_Data);
+	m_pGameServer = pGameServer;
+	mem_zero(&m_RoundData, sizeof(m_RoundData));
+	m_RoundData.m_Map.m_pTiles = 0;
+	AntibotRoundStart(&m_RoundData);
 	Update();
+}
+void CAntibot::RoundEnd()
+{
+	// Let the external module clean up first
+	AntibotRoundEnd();
+
+	m_pGameServer = 0;
+	if(m_RoundData.m_Map.m_pTiles)
+		free(m_RoundData.m_Map.m_pTiles);
 }
 void CAntibot::Dump() { AntibotDump(); }
 void CAntibot::Update()
 {
-	m_pGameContext->FillAntibot(&g_Data);
+	GameServer()->FillAntibot(&m_RoundData);
 	AntibotUpdateData();
 }
 
@@ -91,19 +104,29 @@ void CAntibot::OnEngineClientMessage(int ClientID, const void *pData, int Size, 
 }
 #else
 CAntibot::CAntibot() :
-	m_pGameContext(0)
+	m_pGameServer(0)
 {
 }
 CAntibot::~CAntibot()
 {
 }
-void CAntibot::Init(CGameContext *pGameContext)
+void CAntibot::Init()
 {
-	m_pGameContext = pGameContext;
+	m_pServer = Kernel()->RequestInterface<IServer>();
+	m_pConsole = Kernel()->RequestInterface<IConsole>();
+	dbg_assert(m_pServer && m_pConsole, "antibot requires server and console");
+}
+void CAntibot::RoundStart(IGameServer *pGameServer)
+{
+	m_pGameServer = pGameServer;
+}
+void CAntibot::RoundEnd()
+{
+	m_pGameServer = 0;
 }
 void CAntibot::Dump()
 {
-	m_pGameContext->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antibot", "antibot support not compiled in");
+	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antibot", "antibot support not compiled in");
 }
 void CAntibot::Update()
 {
@@ -123,3 +146,5 @@ void CAntibot::OnEngineClientJoin(int ClientID) { }
 void CAntibot::OnEngineClientDrop(int ClientID, const char *pReason) { }
 void CAntibot::OnEngineClientMessage(int ClientID, const void *pData, int Size, int Flags) { }
 #endif
+
+IEngineAntibot *CreateEngineAntibot() { return new CAntibot; }

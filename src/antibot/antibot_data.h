@@ -49,15 +49,18 @@ struct CAntibotCharacterData
 	int m_WeaponChangeTick;
 };
 
-struct CAntibotData
+struct CAntibotCallbackData
 {
-	int m_Tick;
-	CAntibotCharacterData m_aCharacters[ANTIBOT_MAX_CLIENTS];
-	CAntibotMapData m_Map;
 	void (*m_pfnLog)(const char *pMessage, void *pUser);
 	void (*m_pfnReport)(int ClientID, const char *pMessage, void *pUser);
 	void (*m_pfnSend)(int ClientID, const void *pData, int DataSize, int Flags, void *pUser);
 	void *m_pUser;
+};
+struct CAntibotRoundData
+{
+	int m_Tick;
+	CAntibotCharacterData m_aCharacters[ANTIBOT_MAX_CLIENTS];
+	CAntibotMapData m_Map;
 };
 
 #endif // ANTIBOT_ANTIBOT_DATA_H

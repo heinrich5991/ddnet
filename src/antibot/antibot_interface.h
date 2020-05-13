@@ -5,7 +5,9 @@
 extern "C"
 {
 
-void AntibotInit(CAntibotData *pData);
+void AntibotSetCallbacks(CAntibotCallbackData *pCallbackData);
+void AntibotRoundStart(CAntibotRoundData *pRoundData);
+void AntibotRoundEnd(void);
 void AntibotUpdateData(void);
 void AntibotDestroy(void);
 void AntibotDump(void);

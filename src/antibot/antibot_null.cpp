@@ -2,26 +2,28 @@
 
 #include <base/system.h>
 
-static CAntibotData *g_pAntibot;
+static CAntibotCallbackData *g_pCallbacks;
 
 extern "C"
 {
 
-void AntibotInit(CAntibotData *pData)
+void AntibotSetCallbacks(CAntibotCallbackData *pData)
 {
-	g_pAntibot = pData;
-	if(g_pAntibot->m_pfnLog)
+	g_pCallbacks = pData;
+	if(g_pCallbacks->m_pfnLog)
 	{
-		g_pAntibot->m_pfnLog("null antibot initialized", g_pAntibot->m_pUser);
+		g_pCallbacks->m_pfnLog("null antibot initialized", g_pCallbacks->m_pUser);
 	}
 }
-void AntibotUpdateData() { }
-void AntibotDestroy() { g_pAntibot = 0; }
-void AntibotDump()
+void AntibotRoundStart(CAntibotRoundData *pRoundData) { };
+void AntibotRoundEnd(void) { };
+void AntibotUpdateData(void) { }
+void AntibotDestroy(void) { g_pCallbacks = 0; }
+void AntibotDump(void)
 {
-	if(g_pAntibot->m_pfnLog)
+	if(g_pCallbacks->m_pfnLog)
 	{
-		g_pAntibot->m_pfnLog("null antibot", g_pAntibot->m_pUser);
+		g_pCallbacks->m_pfnLog("null antibot", g_pCallbacks->m_pUser);
 	}
 }
 void AntibotOnPlayerInit(int ClientID) { (void)ClientID; }
