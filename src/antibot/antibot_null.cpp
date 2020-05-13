@@ -7,7 +7,7 @@ static CAntibotCallbackData *g_pCallbacks;
 extern "C"
 {
 
-void AntibotSetCallbacks(CAntibotCallbackData *pData)
+void AntibotInit(CAntibotCallbackData *pData)
 {
 	g_pCallbacks = pData;
 	if(g_pCallbacks->m_pfnLog)

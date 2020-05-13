@@ -54,7 +54,7 @@ void CAntibot::Init()
 	m_CallbackData.m_pfnReport = Report;
 	m_CallbackData.m_pfnSend = Send;
 	m_CallbackData.m_pUser = this;
-	AntibotSetCallbacks(&m_CallbackData);
+	AntibotInit(&m_CallbackData);
 }
 void CAntibot::RoundStart(IGameServer *pGameServer)
 {
