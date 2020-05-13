@@ -33,8 +33,8 @@ public:
 	virtual void OnEngineClientMessage(int ClientID, const void *pData, int Size, int Flags);
 
 	// Game
-    virtual void RoundStart(class IGameServer *pGameServer);
-    virtual void RoundEnd();
+	virtual void RoundStart(class IGameServer *pGameServer);
+	virtual void RoundEnd();
 
 	virtual void OnPlayerInit(int ClientID);
 	virtual void OnPlayerDestroy(int ClientID);
@@ -46,7 +46,7 @@ public:
 	virtual void OnTick(int ClientID);
 	virtual void OnHookAttach(int ClientID, bool Player);
 
-    virtual void Dump();
+	virtual void Dump();
 };
 
 extern IEngineAntibot *CreateEngineAntibot();
