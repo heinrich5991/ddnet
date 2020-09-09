@@ -2317,6 +2317,9 @@ int CServer::Run()
 	if(m_RunServer == UNINITIALIZED)
 		m_RunServer = RUNNING;
 
+	IEngine *pEngine = Kernel()->RequestInterface<IEngine>();
+	pEngine->AddJob(std::make_shared<CPostJson>("http://localhost:1234/", CTimeout{10000, 0, 0}, "{\"started\":true}\n"));
+
 	m_AuthManager.Init();
 
 	if(g_Config.m_Debug)
