@@ -688,7 +688,7 @@ void CServerBrowser::Refresh(int Type)
 	}
 	else if(Type == IServerBrowser::TYPE_INTERNET || Type == IServerBrowser::TYPE_DDNET || Type == IServerBrowser::TYPE_KOG)
 	{
-		m_pEngine->AddJob(m_pGetServers = std::make_shared<CGet>("https://heinrich5991.de/teeworlds/temp/a.json", CTimeout{0, 0, 0}));
+		m_pEngine->AddJob(m_pGetServers = std::make_shared<CGet>("https://heinrich5991.de/teeworlds/temp/servers.json", CTimeout{0, 0, 0}));
 	}
 }
 
@@ -760,6 +760,42 @@ void CServerBrowser::RequestCurrentServer(const NETADDR &Addr) const
 	RequestImpl(Addr, 0);
 }
 
+int ServerbrowserParseUrl(NETADDR *pOut, const char *pUrl)
+{
+	char aHost[128];
+	const char *pRest = str_startswith(pUrl, "tw-0.6+udp://");
+	if(!pRest)
+	{
+		return 1;
+	}
+	int Length = str_length(pRest);
+	int Start = 0;
+	int End = Length;
+	for(int i = 0; i < Length; i++)
+	{
+		if(pRest[i] == '@')
+		{
+			if(Start != 0)
+			{
+				// Two at signs.
+				return 1;
+			}
+			Start = i + 1;
+		}
+		else if(pRest[i] == '/' || pRest[i] == '?' || pRest[i] == '#')
+		{
+			End = i;
+			break;
+		}
+	}
+	str_truncate(aHost, sizeof(aHost), pRest + Start, End - Start);
+	if(net_addr_from_str(pOut, aHost))
+	{
+		return 1;
+	}
+	return 0;
+}
+
 void CServerBrowser::Update(bool ForceResort)
 {
 	int64 Timeout = time_freq();
@@ -787,19 +823,34 @@ void CServerBrowser::Update(bool ForceResort)
 		for(unsigned int i = 0; i < Servers.u.array.length; i++)
 		{
 			const json_value &Server = Servers[i];
-			// TODO: Address address handling :P
-			const json_value &Address = Server["addresses"][0];
+			const json_value &Addresses = Server["addresses"];
 			const json_value &Info = Server["info"];
 			CServerInfo2 ParsedInfo;
-			NETADDR ParsedAddr;
-			if(CServerInfo2::FromJson(&ParsedInfo, &Info)
-				|| Address.type != json_string
-				|| net_addr_from_str(&ParsedAddr, Address))
+			if(Addresses.type != json_array)
 			{
 				return;
 			}
+			if(CServerInfo2::FromJson(&ParsedInfo, &Info))
+			{
+				dbg_msg("dbg/serverbrowser", "skipped due to info");
+				// Only skip the current server on parsing
+				// failure; the server info is "user input" by
+				// the game server and can be set to arbitrary
+				// values.
+				continue;
+			}
 			CServerInfo SetInfo = ParsedInfo;
-			Set(ParsedAddr, IServerBrowser::SET_HTTPINFO, 0, &SetInfo);
+			for(unsigned int a = 0; a < Addresses.u.array.length; a++)
+			{
+				// TODO: Address address handling :P
+				NETADDR ParsedAddr;
+				if(ServerbrowserParseUrl(&ParsedAddr, Addresses[a]))
+				{
+					// Skip unknown addresses.
+					continue;
+				}
+				Set(ParsedAddr, IServerBrowser::SET_HTTPINFO, 0, &SetInfo);
+			}
 		}
 		if(LegacyServers.type == json_array)
 		{
