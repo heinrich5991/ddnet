@@ -68,8 +68,8 @@ bool CServerInfo2::FromJsonRaw(CServerInfo2 *pOut, const json_value *pJson)
 	const json_value &GameType = ServerInfo["game_type"];
 	const json_value &Name = ServerInfo["name"];
 	const json_value &MapName = ServerInfo["map"]["name"];
-	const json_value &MapCrc = ServerInfo["map"]["crc"];
-	const json_value &MapSize = ServerInfo["map"]["size"];
+	//const json_value &MapCrc = ServerInfo["map"]["crc"];
+	//const json_value &MapSize = ServerInfo["map"]["size"];
 	const json_value &Version = ServerInfo["version"];
 	const json_value &Clients = ServerInfo["clients"];
 	if(false
@@ -79,8 +79,8 @@ bool CServerInfo2::FromJsonRaw(CServerInfo2 *pOut, const json_value *pJson)
 		|| GameType.type != json_string
 		|| Name.type != json_string
 		|| MapName.type != json_string
-		|| MapCrc.type != json_string
-		|| MapSize.type != json_integer
+		//|| MapCrc.type != json_string
+		//|| MapSize.type != json_integer
 		|| Version.type != json_string
 		|| Clients.type != json_array)
 	{
@@ -92,8 +92,8 @@ bool CServerInfo2::FromJsonRaw(CServerInfo2 *pOut, const json_value *pJson)
 	str_copy(pOut->m_aGameType, GameType, sizeof(pOut->m_aGameType));
 	str_copy(pOut->m_aName, Name, sizeof(pOut->m_aName));
 	str_copy(pOut->m_aMapName, MapName, sizeof(pOut->m_aMapName));
-	if(ParseCrc(&pOut->m_MapCrc, MapCrc)) { return true; }
-	pOut->m_MapSize = MapSize;
+	//if(ParseCrc(&pOut->m_MapCrc, MapCrc)) { return true; }
+	//pOut->m_MapSize = MapSize;
 	str_copy(pOut->m_aVersion, Version, sizeof(pOut->m_aVersion));
 
 	pOut->m_NumClients = 0;
@@ -105,13 +105,15 @@ bool CServerInfo2::FromJsonRaw(CServerInfo2 *pOut, const json_value *pJson)
 		const json_value &Clan = Client["clan"];
 		const json_value &Country = Client["country"];
 		const json_value &Score = Client["score"];
-		const json_value &Team = Client["team"];
+		//const json_value &Team = Client["team"];
+		const json_value &IsPlayer = Client["is_player"];
 		if(false
 			|| Name.type != json_string
 			|| Clan.type != json_string
 			|| Country.type != json_integer
 			|| Score.type != json_integer
-			|| Team.type != json_integer)
+			//|| Team.type != json_integer
+			|| IsPlayer.type != json_boolean)
 		{
 			return true;
 		}
@@ -122,11 +124,11 @@ bool CServerInfo2::FromJsonRaw(CServerInfo2 *pOut, const json_value *pJson)
 			str_copy(pClient->m_aClan, Clan, sizeof(pClient->m_aClan));
 			pClient->m_Country = Country;
 			pClient->m_Score = Score;
-			pClient->m_Team = Team;
+			pClient->m_IsPlayer = IsPlayer;
 		}
 
 		pOut->m_NumClients++;
-		if((int)Team != 0)
+		if((bool)IsPlayer)
 		{
 			pOut->m_NumPlayers++;
 		}
@@ -145,8 +147,8 @@ bool CServerInfo2::operator==(const CServerInfo2 &Other) const
 		|| str_comp(m_aGameType, Other.m_aGameType) != 0
 		|| str_comp(m_aName, Other.m_aName) != 0
 		|| str_comp(m_aMapName, Other.m_aMapName) != 0
-		|| m_MapCrc != Other.m_MapCrc
-		|| m_MapSize != Other.m_MapSize
+		//|| m_MapCrc != Other.m_MapCrc
+		//|| m_MapSize != Other.m_MapSize
 		|| str_comp(m_aVersion, Other.m_aVersion) != 0)
 	{
 		return false;
@@ -158,7 +160,8 @@ bool CServerInfo2::operator==(const CServerInfo2 &Other) const
 			|| str_comp(m_aClients[i].m_aClan, Other.m_aClients[i].m_aClan) != 0
 			|| m_aClients[i].m_Country != Other.m_aClients[i].m_Country
 			|| m_aClients[i].m_Score != Other.m_aClients[i].m_Score
-			|| m_aClients[i].m_Team != Other.m_aClients[i].m_Team)
+			//|| m_aClients[i].m_Team != Other.m_aClients[i].m_Team
+			|| m_aClients[i].m_IsPlayer != Other.m_aClients[i].m_IsPlayer)
 		{
 			return false;
 		}
@@ -169,6 +172,7 @@ bool CServerInfo2::operator==(const CServerInfo2 &Other) const
 void CServerInfo2::ToJson(char *pBuffer, int BufferSize) const
 {
 	dbg_assert(BufferSize > 0, "empty buffer");
+	/*
 	char aGameType[32];
 	char aName[128];
 	char aMapName[64];
@@ -210,6 +214,7 @@ void CServerInfo2::ToJson(char *pBuffer, int BufferSize) const
 	}
 
 	str_format(pBuffer, BufferSize, "]}");
+	*/
 }
 
 CServerInfo2::operator CServerInfo() const
@@ -223,8 +228,8 @@ CServerInfo2::operator CServerInfo() const
 	str_copy(Result.m_aGameType, m_aGameType, sizeof(Result.m_aGameType));
 	str_copy(Result.m_aName, m_aName, sizeof(Result.m_aName));
 	str_copy(Result.m_aMap, m_aMapName, sizeof(Result.m_aMap));
-	Result.m_MapCrc = m_MapCrc;
-	Result.m_MapSize = m_MapSize;
+	//Result.m_MapCrc = m_MapCrc;
+	//Result.m_MapSize = m_MapSize;
 	str_copy(Result.m_aVersion, m_aVersion, sizeof(Result.m_aVersion));
 
 	for(int i = 0; i < std::min(m_NumClients, (int)MAX_CLIENTS); i++)
@@ -233,7 +238,8 @@ CServerInfo2::operator CServerInfo() const
 		str_copy(Result.m_aClients[i].m_aClan, m_aClients[i].m_aClan, sizeof(Result.m_aClients[i].m_aClan));
 		Result.m_aClients[i].m_Country = m_aClients[i].m_Country;
 		Result.m_aClients[i].m_Score = m_aClients[i].m_Score;
-		Result.m_aClients[i].m_Player = m_aClients[i].m_Team != 0;
+		//Result.m_aClients[i].m_Team = m_aClients[i].m_Team;
+		Result.m_aClients[i].m_Player = m_aClients[i].m_IsPlayer;
 	}
 
 	Result.m_NumReceivedClients = std::min(m_NumClients, (int)MAX_CLIENTS);

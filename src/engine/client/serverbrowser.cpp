@@ -832,7 +832,7 @@ void CServerBrowser::Update(bool ForceResort)
 			}
 			if(CServerInfo2::FromJson(&ParsedInfo, &Info))
 			{
-				dbg_msg("dbg/serverbrowser", "skipped due to info");
+				dbg_msg("dbg/serverbrowser", "skipped due to info, i=%d", i);
 				// Only skip the current server on parsing
 				// failure; the server info is "user input" by
 				// the game server and can be set to arbitrary
@@ -842,10 +842,16 @@ void CServerBrowser::Update(bool ForceResort)
 			CServerInfo SetInfo = ParsedInfo;
 			for(unsigned int a = 0; a < Addresses.u.array.length; a++)
 			{
+				const json_value &Address = Addresses[a];
+				if(Address.type != json_string)
+				{
+					return;
+				}
 				// TODO: Address address handling :P
 				NETADDR ParsedAddr;
 				if(ServerbrowserParseUrl(&ParsedAddr, Addresses[a]))
 				{
+					dbg_msg("dbg/serverbrowser", "unknown address, i=%d a=%d", i, a);
 					// Skip unknown addresses.
 					continue;
 				}
