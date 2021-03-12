@@ -1708,6 +1708,8 @@ if(CLIENT)
     opengl_sl_program.h
     serverbrowser.cpp
     serverbrowser.h
+    serverbrowser_http.cpp
+    serverbrowser_http.h
     sound.cpp
     sound.h
     steam.cpp

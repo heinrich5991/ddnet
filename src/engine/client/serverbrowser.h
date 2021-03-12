@@ -11,6 +11,8 @@
 #include <engine/shared/config.h>
 #include <engine/shared/memheap.h>
 
+class IServerBrowserHttp;
+
 class CServerBrowser : public IServerBrowser
 {
 public:
@@ -140,7 +142,8 @@ private:
 	class IFriends *m_pFriends;
 	char m_aNetVersion[128];
 
-	std::shared_ptr<CGet> m_pGetServers;
+	bool m_RefreshingHttp = false;
+	IServerBrowserHttp *m_pHttp = nullptr;
 
 	CHeap m_ServerlistHeap;
 	CServerEntry **m_ppServerlist;
@@ -200,6 +203,7 @@ private:
 	void Sort();
 	int SortHash() const;
 
+	void UpdateFromHttp();
 	CServerEntry *Add(const NETADDR &Addr);
 
 	void RemoveRequest(CServerEntry *pEntry);

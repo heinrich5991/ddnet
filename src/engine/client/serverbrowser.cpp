@@ -24,6 +24,8 @@
 #include <engine/external/json-parser/json.h>
 
 #include "serverbrowser.h"
+
+#include "serverbrowser_http.h"
 class SortWrap
 {
 	typedef bool (CServerBrowser::*SortFunc)(int, int) const;
@@ -78,6 +80,9 @@ CServerBrowser::~CServerBrowser()
 
 	if(m_pDDNetInfo)
 		json_value_free(m_pDDNetInfo);
+
+	delete m_pHttp;
+	m_pHttp = nullptr;
 }
 
 void CServerBrowser::SetBaseInfo(class CNetClient *pClient, const char *pNetVersion)
@@ -90,6 +95,7 @@ void CServerBrowser::SetBaseInfo(class CNetClient *pClient, const char *pNetVers
 	IConfigManager *pConfigManager = Kernel()->RequestInterface<IConfigManager>();
 	if(pConfigManager)
 		pConfigManager->RegisterCallback(ConfigSaveCallback, this);
+	m_pHttp = CreateServerBrowserHttp(m_pEngine);
 }
 
 const CServerInfo *CServerBrowser::SortedGet(int Index) const
@@ -688,7 +694,8 @@ void CServerBrowser::Refresh(int Type)
 	}
 	else if(Type == IServerBrowser::TYPE_INTERNET || Type == IServerBrowser::TYPE_DDNET || Type == IServerBrowser::TYPE_KOG)
 	{
-		m_pEngine->AddJob(m_pGetServers = std::make_shared<CGet>("https://heinrich5991.de/teeworlds/temp/servers.json", CTimeout{0, 0, 0}));
+		m_pHttp->Refresh();
+		m_RefreshingHttp = true;
 	}
 }
 
@@ -760,40 +767,155 @@ void CServerBrowser::RequestCurrentServer(const NETADDR &Addr) const
 	RequestImpl(Addr, 0);
 }
 
-int ServerbrowserParseUrl(NETADDR *pOut, const char *pUrl)
+void CServerBrowser::UpdateFromHttp()
 {
-	char aHost[128];
-	const char *pRest = str_startswith(pUrl, "tw-0.6+udp://");
-	if(!pRest)
+	int NumServers = m_pHttp->NumServers();
+	int NumLegacyServers = m_pHttp->NumLegacyServers();
+	if(m_ServerlistType != IServerBrowser::TYPE_DDNET && m_ServerlistType != IServerBrowser::TYPE_KOG)
 	{
-		return 1;
-	}
-	int Length = str_length(pRest);
-	int Start = 0;
-	int End = Length;
-	for(int i = 0; i < Length; i++)
-	{
-		if(pRest[i] == '@')
+		std::vector<NETADDR> aWantedAddresses;
+		int Network;
+		int LegacySetType;
+		char *pExcludeCountries;
+		char *pExcludeTypes;
+		switch(m_ServerlistType)
 		{
-			if(Start != 0)
-			{
-				// Two at signs.
-				return 1;
-			}
-			Start = i + 1;
-		}
-		else if(pRest[i] == '/' || pRest[i] == '?' || pRest[i] == '#')
-		{
-			End = i;
+		case IServerBrowser::TYPE_DDNET:
+			Network = NETWORK_DDNET;
+			LegacySetType = IServerBrowser::SET_DDNET_ADD;
+			pExcludeCountries = g_Config.m_BrFilterExcludeCountries;
+			pExcludeTypes = g_Config.m_BrFilterExcludeTypes;
 			break;
+		case IServerBrowser::TYPE_KOG:
+			Network = NETWORK_KOG;
+			LegacySetType = IServerBrowser::SET_KOG_ADD;
+			pExcludeCountries = g_Config.m_BrFilterExcludeCountriesKoG;
+			pExcludeTypes = g_Config.m_BrFilterExcludeTypesKoG;
+			break;
+		default:
+			dbg_assert(0, "invalid network");
 		}
+		// remove unknown elements of exclude list
+                CountryFilterClean(Network);
+                TypeFilterClean(Network);
+
+                int MaxServers = 0;
+                for(int i = 0; i < m_aNetworks[Network].m_NumCountries; i++)
+                {
+                        CNetworkCountry *pCntr = &m_aNetworks[Network].m_aCountries[i];
+                        MaxServers = maximum(MaxServers, pCntr->m_NumServers);
+                }
+
+                for(int g = 0; g < MaxServers; g++)
+                {
+                        for(int i = 0; i < m_aNetworks[Network].m_NumCountries; i++)
+                        {
+                                CNetworkCountry *pCntr = &m_aNetworks[Network].m_aCountries[i];
+
+                                // check for filter
+                                if(DDNetFiltered(pExcludeCountries, pCntr->m_aName))
+                                        continue;
+
+                                if(g >= pCntr->m_NumServers)
+                                        continue;
+
+                                if(DDNetFiltered(pExcludeTypes, pCntr->m_aTypes[g]))
+					continue;
+				aWantedAddresses.push_back(pCntr->m_aServers[g]);
+                        }
+                }
+		std::vector<int> aSortedServers;
+		std::vector<int> aSortedLegacyServers;
+		for(int i = 0; i < NumServers; i++)
+		{
+			aSortedServers.push_back(i);
+		}
+		for(int i = 0; i < NumLegacyServers; i++)
+		{
+			aSortedLegacyServers.push_back(i);
+		}
+
+		class CAddrComparer
+		{
+		public:
+			IServerBrowserHttp *m_pHttp;
+			bool operator()(int i, int j)
+			{
+				return net_addr_comp(&m_pHttp->ServerAddress(i), &m_pHttp->ServerAddress(j)) < 0;
+			}
+		};
+		class CLegacyAddrComparer
+		{
+		public:
+			IServerBrowserHttp *m_pHttp;
+			bool operator()(int i, int j)
+			{
+				return net_addr_comp(&m_pHttp->LegacyServer(i), &m_pHttp->LegacyServer(j)) < 0;
+			}
+		};
+
+		std::sort(aSortedServers.begin(), aSortedServers.end(), CAddrComparer{m_pHttp});
+		std::sort(aSortedLegacyServers.begin(), aSortedLegacyServers.end(), CLegacyAddrComparer{m_pHttp});
+
+		unsigned i = 0;
+		unsigned j = 0;
+		while(i < aWantedAddresses.size() && j < aSortedServers.size())
+		{
+			int Cmp = net_addr_comp(&aWantedAddresses[i], &m_pHttp->ServerAddress(aSortedServers[j]));
+			if(Cmp != 0)
+			{
+				if(Cmp < 0)
+				{
+					i++;
+				}
+				else
+				{
+					j++;
+				}
+				continue;
+			}
+			NETADDR Addr;
+			CServerInfo Info;
+			m_pHttp->Server(aSortedServers[j], &Addr, &Info);
+			Set(Addr, IServerBrowser::SET_HTTPINFO, -1, &Info);
+			i++;
+			j++;
+		}
+		i = 0;
+		j = 0;
+		while(i < aWantedAddresses.size() && j < aSortedLegacyServers.size())
+		{
+			int Cmp = net_addr_comp(&aWantedAddresses[i], &m_pHttp->LegacyServer(aSortedLegacyServers[j]));
+			if(Cmp != 0)
+			{
+				if(Cmp < 0)
+				{
+					i++;
+				}
+				else
+				{
+					j++;
+				}
+				continue;
+			}
+			Set(m_pHttp->LegacyServer(aSortedLegacyServers[j]), LegacySetType, -1, nullptr);
+			i++;
+			j++;
+		}
+		return;
 	}
-	str_truncate(aHost, sizeof(aHost), pRest + Start, End - Start);
-	if(net_addr_from_str(pOut, aHost))
+	for(int i = 0; i < NumServers; i++)
 	{
-		return 1;
+		NETADDR Addr;
+		CServerInfo Info;
+		m_pHttp->Server(i, &Addr, &Info);
+		Set(Addr, IServerBrowser::SET_HTTPINFO, -1, &Info);
 	}
-	return 0;
+	for(int i = 0; i < NumLegacyServers; i++)
+	{
+		NETADDR Addr = m_pHttp->LegacyServer(i);
+		Set(Addr, IServerBrowser::SET_MASTER_ADD, -1, nullptr);
+	}
 }
 
 void CServerBrowser::Update(bool ForceResort)
@@ -801,77 +923,12 @@ void CServerBrowser::Update(bool ForceResort)
 	int64 Timeout = time_freq();
 	int64 Now = time_get();
 
-	if(m_NumServers == 0 && m_ServerlistType != TYPE_FAVORITES && m_ServerlistType != TYPE_LAN && m_pGetServers)
-	{
-		json_value *pJson = m_pGetServers->ResultJson();
-		// TODO: Handle parsing error!
-		if(!pJson)
-		{
-			return;
-		}
-		m_pGetServers = NULL;
+	m_pHttp->Update();
 
-		const json_value &Json = *pJson;
-		// TODO: Handle errors in a sane way. :(
-		const json_value &Servers = Json["servers"];
-		const json_value &LegacyServers = Json["servers_legacy"];
-		if(Servers.type != json_array
-			|| (LegacyServers.type != json_array && LegacyServers.type != json_none))
-		{
-			return;
-		}
-		for(unsigned int i = 0; i < Servers.u.array.length; i++)
-		{
-			const json_value &Server = Servers[i];
-			const json_value &Addresses = Server["addresses"];
-			const json_value &Info = Server["info"];
-			CServerInfo2 ParsedInfo;
-			if(Addresses.type != json_array)
-			{
-				return;
-			}
-			if(CServerInfo2::FromJson(&ParsedInfo, &Info))
-			{
-				dbg_msg("dbg/serverbrowser", "skipped due to info, i=%d", i);
-				// Only skip the current server on parsing
-				// failure; the server info is "user input" by
-				// the game server and can be set to arbitrary
-				// values.
-				continue;
-			}
-			CServerInfo SetInfo = ParsedInfo;
-			for(unsigned int a = 0; a < Addresses.u.array.length; a++)
-			{
-				const json_value &Address = Addresses[a];
-				if(Address.type != json_string)
-				{
-					return;
-				}
-				// TODO: Address address handling :P
-				NETADDR ParsedAddr;
-				if(ServerbrowserParseUrl(&ParsedAddr, Addresses[a]))
-				{
-					dbg_msg("dbg/serverbrowser", "unknown address, i=%d a=%d", i, a);
-					// Skip unknown addresses.
-					continue;
-				}
-				Set(ParsedAddr, IServerBrowser::SET_HTTPINFO, 0, &SetInfo);
-			}
-		}
-		if(LegacyServers.type == json_array)
-		{
-			for(unsigned int i = 0; i < LegacyServers.u.array.length; i++)
-			{
-				const json_value &Address = LegacyServers[i];
-				NETADDR ParsedAddr;
-				if(Address.type != json_string
-					|| net_addr_from_str(&ParsedAddr, Address))
-				{
-					return;
-				}
-				Set(ParsedAddr, IServerBrowser::SET_MASTER_ADD, -1, 0);
-			}
-		}
+	if(m_ServerlistType != TYPE_FAVORITES && m_ServerlistType != TYPE_LAN && m_RefreshingHttp && !m_pHttp->IsRefreshing())
+	{
+		m_RefreshingHttp = false;
+		UpdateFromHttp();
 		// TODO: move this somewhere else
 		if(m_Sorthash != SortHash() || ForceResort)
 			Sort();
@@ -1201,7 +1258,7 @@ bool CServerBrowser::IsRefreshing() const
 
 bool CServerBrowser::IsGettingServerlist() const
 {
-	return (bool)m_pGetServers;
+	return m_pHttp->IsRefreshing();
 }
 
 int CServerBrowser::LoadingProgression() const
