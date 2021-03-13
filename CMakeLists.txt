@@ -2179,6 +2179,7 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
     name_ban.cpp
     packer.cpp
     prng.cpp
+    secure_random.cpp
     serverinfo.cpp
     str.cpp
     strip_path_and_extension.cpp
