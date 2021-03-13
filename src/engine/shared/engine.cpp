@@ -104,4 +104,10 @@ public:
 	}
 };
 
+
+void IEngine::RunJobBlocking(IJob *pJob)
+{
+	CJobPool::RunBlocking(pJob);
+}
+
 IEngine *CreateEngine(const char *pAppname, bool Silent, int Jobs) { return new CEngine(pAppname, Silent, Jobs); }
