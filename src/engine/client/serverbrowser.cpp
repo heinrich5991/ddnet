@@ -771,7 +771,7 @@ void CServerBrowser::UpdateFromHttp()
 {
 	int NumServers = m_pHttp->NumServers();
 	int NumLegacyServers = m_pHttp->NumLegacyServers();
-	if(m_ServerlistType != IServerBrowser::TYPE_DDNET && m_ServerlistType != IServerBrowser::TYPE_KOG)
+	if(m_ServerlistType == IServerBrowser::TYPE_DDNET || m_ServerlistType == IServerBrowser::TYPE_KOG)
 	{
 		std::vector<NETADDR> aWantedAddresses;
 		int Network;

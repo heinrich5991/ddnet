@@ -9,6 +9,153 @@
 
 #include <memory>
 
+class CChooseMaster
+{
+public:
+	enum
+	{
+		MAX_URLS=16,
+	};
+	CChooseMaster(IEngine *pEngine, const char **ppUrls, int NumUrls, int PreviousBestIndex);
+	virtual ~CChooseMaster() {}
+
+	const char *GetBestUrl() const;
+	int GetBestIndex() const;
+	void Refresh();
+
+private:
+	class CData
+	{
+	public:
+		std::atomic_int m_BestIndex{-1};
+		// Constant after construction.
+		int m_NumUrls;
+		char m_aaUrls[MAX_URLS][256];
+	};
+	class CJob : public IJob
+	{
+		std::shared_ptr<CData> m_pData;
+		virtual void Run();
+	public:
+		CJob(std::shared_ptr<CData> pData) : m_pData(pData) {}
+		virtual ~CJob() {}
+	};
+
+	IEngine *m_pEngine;
+	int m_PreviousBestIndex;
+	std::shared_ptr<CData> m_pData;
+};
+
+CChooseMaster::CChooseMaster(IEngine *pEngine, const char **ppUrls, int NumUrls, int PreviousBestIndex) :
+	m_pEngine(pEngine),
+	m_PreviousBestIndex(PreviousBestIndex)
+{
+	dbg_assert(NumUrls >= 0, "no master URLs");
+	dbg_assert(NumUrls <= MAX_URLS, "too many master URLs");
+	dbg_assert(PreviousBestIndex >= -1, "previous best index negative and not -1");
+	dbg_assert(PreviousBestIndex < NumUrls, "previous best index too high");
+	m_pData = std::make_shared<CData>();
+	m_pData->m_NumUrls = NumUrls;
+	for(int i = 0; i < m_pData->m_NumUrls; i++)
+	{
+		str_copy(m_pData->m_aaUrls[i], ppUrls[i], sizeof(m_pData->m_aaUrls[i]));
+	}
+	if(m_PreviousBestIndex < 0)
+	{
+		m_PreviousBestIndex = secure_rand_below(NumUrls);
+	}
+}
+
+int CChooseMaster::GetBestIndex() const
+{
+	int BestIndex = m_pData->m_BestIndex.load();
+	if(BestIndex >= 0)
+	{
+		return BestIndex;
+	}
+	else
+	{
+		return m_PreviousBestIndex;
+	}
+}
+
+const char *CChooseMaster::GetBestUrl() const
+{
+	return m_pData->m_aaUrls[GetBestIndex()];
+}
+
+void CChooseMaster::Refresh()
+{
+	m_pEngine->AddJob(std::make_shared<CJob>(m_pData));
+}
+
+void CChooseMaster::CJob::Run()
+{
+	// Check masters in a random order.
+	int aRandomized[MAX_URLS];
+	for(int i = 0; i < m_pData->m_NumUrls; i++)
+	{
+		aRandomized[i] = i;
+	}
+	// https://en.wikipedia.org/w/index.php?title=Fisher%E2%80%93Yates_shuffle&oldid=1002922479#The_modern_algorithm
+	// The equivalent version.
+	for(int i = 0; i <= m_pData->m_NumUrls - 2; i++)
+	{
+		int j = i + secure_rand_below(m_pData->m_NumUrls - i);
+		std::swap(aRandomized[i], aRandomized[j]);
+	}
+	// Do a HEAD request to ensure that a connection is established and
+	// then do a GET request to check how fast we can get the server list.
+	//
+	// 10 seconds connection timeout, lower than 8KB/s for 10 seconds to
+	// fail.
+	CTimeout Timeout{10000, 8000, 10};
+	int aTimeMs[MAX_URLS];
+	for(int i = 0; i < m_pData->m_NumUrls; i++)
+	{
+		aTimeMs[i] = -1;
+		const char *pUrl = m_pData->m_aaUrls[aRandomized[i]];
+		CHead Head(pUrl, Timeout);
+		IEngine::RunJobBlocking(&Head);
+		if(Head.State() != HTTP_DONE)
+		{
+			continue;
+		}
+		int64 StartTime = time_get();
+		CGet Get(pUrl, Timeout);
+		IEngine::RunJobBlocking(&Get);
+		int Time = (time_get() - StartTime) * 1000 / time_freq();
+		if(Get.State() != HTTP_DONE)
+		{
+			continue;
+		}
+		dbg_msg("serverbrowse_http", "found master, url='%s' time=%dms", pUrl, Time);
+		aTimeMs[i] = Time;
+	}
+	// Determine index of the minimum time.
+	int BestIndex = -1;
+	int BestTime;
+	for(int i = 1; i < m_pData->m_NumUrls; i++)
+	{
+		if(aTimeMs[i] < 0)
+		{
+			continue;
+		}
+		if(BestIndex == -1 || aTimeMs[i] < BestTime)
+		{
+			BestTime = aTimeMs[i];
+			BestIndex = aRandomized[i];
+		}
+	}
+	if(BestIndex == -1)
+	{
+		dbg_msg("serverbrowse_http", "WARNING: no usable masters found");
+		return;
+	}
+	dbg_msg("serverbrowse_http", "determined best master, url='%s' time=%dms", m_pData->m_aaUrls[BestIndex], BestTime);
+	m_pData->m_BestIndex.store(BestIndex);
+}
+
 class CServerBrowserHttp : public IServerBrowserHttp
 {
 public:
@@ -51,14 +198,22 @@ private:
 	};
 	IEngine *m_pEngine;
 	std::shared_ptr<CGet> m_pGetServers;
+	std::unique_ptr<CChooseMaster> m_pChooseMaster;
 
 	std::vector<CEntry> m_aServers;
 	std::vector<NETADDR> m_aLegacyServers;
 };
 
-CServerBrowserHttp::CServerBrowserHttp(IEngine *pEngine)
-	: m_pEngine(pEngine)
+static const char *MASTERSERVER_URLS[] = {
+	"https://heinrich5991.de/teeworlds/temp/xyz.json",
+	"https://heinrich5991.de/teeworlds/temp/servers.json",
+};
+
+CServerBrowserHttp::CServerBrowserHttp(IEngine *pEngine) :
+	m_pEngine(pEngine),
+	m_pChooseMaster(new CChooseMaster(pEngine, MASTERSERVER_URLS, sizeof(MASTERSERVER_URLS) / sizeof(MASTERSERVER_URLS[0]), -1))
 {
+	m_pChooseMaster->Refresh();
 }
 void CServerBrowserHttp::Update()
 {
@@ -79,7 +234,7 @@ void CServerBrowserHttp::Update()
 }
 void CServerBrowserHttp::Refresh()
 {
-	m_pEngine->AddJob(m_pGetServers = std::make_shared<CGet>("https://heinrich5991.de/teeworlds/temp/servers.json", CTimeout{0, 0, 0}));
+	m_pEngine->AddJob(m_pGetServers = std::make_shared<CGet>(m_pChooseMaster->GetBestUrl(), CTimeout{0, 0, 0}));
 }
 bool ServerbrowserParseUrl(NETADDR *pOut, const char *pUrl)
 {
