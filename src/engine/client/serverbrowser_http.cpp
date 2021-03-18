@@ -135,7 +135,7 @@ void CChooseMaster::CJob::Run()
 	// Determine index of the minimum time.
 	int BestIndex = -1;
 	int BestTime;
-	for(int i = 1; i < m_pData->m_NumUrls; i++)
+	for(int i = 0; i < m_pData->m_NumUrls; i++)
 	{
 		if(aTimeMs[i] < 0)
 		{
@@ -290,10 +290,19 @@ bool CServerBrowserHttp::Parse(json_value *pJson)
 		const json_value &Server = Servers[i];
 		const json_value &Addresses = Server["addresses"];
 		const json_value &Info = Server["info"];
+		const json_value &Location = Server["location"];
+		int ParsedLocation = CServerInfo::LOC_UNKNOWN;
 		CServerInfo2 ParsedInfo;
-		if(Addresses.type != json_array)
+		if(Addresses.type != json_array || (Location.type != json_string && Location.type != json_none))
 		{
 			return true;
+		}
+		if(Location.type == json_string)
+		{
+			if(CServerInfo::ParseLocation(&ParsedLocation, Location))
+			{
+				return true;
+			}
 		}
 		if(CServerInfo2::FromJson(&ParsedInfo, &Info))
 		{
@@ -305,6 +314,7 @@ bool CServerBrowserHttp::Parse(json_value *pJson)
 			continue;
 		}
 		CServerInfo SetInfo = ParsedInfo;
+		SetInfo.m_Location = ParsedLocation;
 		for(unsigned int a = 0; a < Addresses.u.array.length; a++)
 		{
 			const json_value &Address = Addresses[a];

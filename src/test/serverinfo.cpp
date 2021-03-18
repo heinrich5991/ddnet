@@ -5,6 +5,27 @@
 
 #include <engine/external/json-parser/json.h>
 
+TEST(ServerInfo, ParseLocation)
+{
+	int Result;
+	EXPECT_TRUE(CServerInfo::ParseLocation(&Result, "xx"));
+	EXPECT_FALSE(CServerInfo::ParseLocation(&Result, "an"));
+	EXPECT_EQ(Result, CServerInfo::LOC_UNKNOWN);
+	EXPECT_FALSE(CServerInfo::ParseLocation(&Result, "af"));
+	EXPECT_EQ(Result, CServerInfo::LOC_AFRICA);
+	EXPECT_FALSE(CServerInfo::ParseLocation(&Result, "eu-n"));
+	EXPECT_EQ(Result, CServerInfo::LOC_EUROPE);
+	EXPECT_FALSE(CServerInfo::ParseLocation(&Result, "na"));
+	EXPECT_EQ(Result, CServerInfo::LOC_NORTH_AMERICA);
+	EXPECT_FALSE(CServerInfo::ParseLocation(&Result, "sa"));
+	EXPECT_EQ(Result, CServerInfo::LOC_SOUTH_AMERICA);
+	EXPECT_FALSE(CServerInfo::ParseLocation(&Result, "as:e"));
+	EXPECT_EQ(Result, CServerInfo::LOC_ASIA);
+	EXPECT_FALSE(CServerInfo::ParseLocation(&Result, "oc"));
+	EXPECT_EQ(Result, CServerInfo::LOC_AUSTRALIA);
+}
+
+/*
 static CServerInfo2 Parse(const char *pJson)
 {
 	CServerInfo2 Out = {0};
@@ -96,6 +117,7 @@ TEST(ServerInfo, ToServerBrowserServerInfo)
 		EXPECT_EQ(Sbsi.m_aClients[i].m_Player, s_Something.m_aClients[i].m_Team != 0);
 	}
 }
+*/
 
 static unsigned int ParseCrcOrDeadbeef(const char *pString)
 {

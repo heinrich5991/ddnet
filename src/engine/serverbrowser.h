@@ -14,6 +14,18 @@
 class CServerInfo
 {
 public:
+	enum
+	{
+		LOC_UNKNOWN=0,
+		LOC_AFRICA,
+		LOC_ASIA,
+		LOC_AUSTRALIA,
+		LOC_EUROPE,
+		LOC_NORTH_AMERICA,
+		LOC_SOUTH_AMERICA,
+		NUM_LOCS,
+	};
+
 	class CClient
 	{
 	public:
@@ -44,6 +56,8 @@ public:
 	int m_Flags;
 	bool m_Favorite;
 	bool m_Official;
+	int m_Location;
+	bool m_LatencyIsEstimated;
 	int m_Latency; // in ms
 	int m_HasRank;
 	char m_aGameType[16];
@@ -57,6 +71,9 @@ public:
 	mutable int m_NumFilteredPlayers;
 
 	mutable CUIElement *m_pUIElement;
+
+	static int EstimateLatency(int Loc1, int Loc2);
+	static bool ParseLocation(int *pResult, const char *pString);
 };
 
 bool IsVanilla(const CServerInfo *pInfo);

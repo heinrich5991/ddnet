@@ -243,6 +243,7 @@ CServerInfo2::operator CServerInfo() const
 	}
 
 	Result.m_NumReceivedClients = std::min(m_NumClients, (int)MAX_CLIENTS);
+	Result.m_Latency = -1;
 
 	return Result;
 }

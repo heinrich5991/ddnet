@@ -577,6 +577,8 @@ void CServerBrowser::Set(const NETADDR &Addr, int Type, int Token, const CServer
 		if(pEntry)
 		{
 			SetInfo(pEntry, *pInfo);
+			pEntry->m_Info.m_LatencyIsEstimated = true;
+			pEntry->m_Info.m_Latency = CServerInfo::EstimateLatency(CServerInfo::LOC_EUROPE, pEntry->m_Info.m_Location);
 		}
 	}
 	else if(Type == IServerBrowser::SET_TOKEN)
@@ -687,12 +689,7 @@ void CServerBrowser::Refresh(int Type)
 		if(g_Config.m_Debug)
 			m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client_srvbrowse", "broadcasting for servers");
 	}
-	else if(Type == IServerBrowser::TYPE_FAVORITES)
-	{
-		for(int i = 0; i < m_NumFavoriteServers; i++)
-			Set(m_aFavoriteServers[i], IServerBrowser::SET_FAV_ADD, -1, 0);
-	}
-	else if(Type == IServerBrowser::TYPE_INTERNET || Type == IServerBrowser::TYPE_DDNET || Type == IServerBrowser::TYPE_KOG)
+	else if(Type == IServerBrowser::TYPE_FAVORITES || Type == IServerBrowser::TYPE_INTERNET || Type == IServerBrowser::TYPE_DDNET || Type == IServerBrowser::TYPE_KOG)
 	{
 		m_pHttp->Refresh();
 		m_RefreshingHttp = true;
@@ -771,59 +768,70 @@ void CServerBrowser::UpdateFromHttp()
 {
 	int NumServers = m_pHttp->NumServers();
 	int NumLegacyServers = m_pHttp->NumLegacyServers();
-	if(m_ServerlistType == IServerBrowser::TYPE_DDNET || m_ServerlistType == IServerBrowser::TYPE_KOG)
+	if(m_ServerlistType != IServerBrowser::TYPE_INTERNET)
 	{
 		std::vector<NETADDR> aWantedAddresses;
-		int Network;
 		int LegacySetType;
-		char *pExcludeCountries;
-		char *pExcludeTypes;
-		switch(m_ServerlistType)
+		if(m_ServerlistType == IServerBrowser::TYPE_FAVORITES)
 		{
-		case IServerBrowser::TYPE_DDNET:
-			Network = NETWORK_DDNET;
-			LegacySetType = IServerBrowser::SET_DDNET_ADD;
-			pExcludeCountries = g_Config.m_BrFilterExcludeCountries;
-			pExcludeTypes = g_Config.m_BrFilterExcludeTypes;
-			break;
-		case IServerBrowser::TYPE_KOG:
-			Network = NETWORK_KOG;
-			LegacySetType = IServerBrowser::SET_KOG_ADD;
-			pExcludeCountries = g_Config.m_BrFilterExcludeCountriesKoG;
-			pExcludeTypes = g_Config.m_BrFilterExcludeTypesKoG;
-			break;
-		default:
-			dbg_assert(0, "invalid network");
+			for(int i = 0; i < m_NumFavoriteServers; i++)
+			{
+				aWantedAddresses.push_back(m_aFavoriteServers[i]);
+			}
+			LegacySetType = IServerBrowser::SET_FAV_ADD;
 		}
-		// remove unknown elements of exclude list
-                CountryFilterClean(Network);
-                TypeFilterClean(Network);
+		else
+		{
+			int Network;
+			char *pExcludeCountries;
+			char *pExcludeTypes;
+			switch(m_ServerlistType)
+			{
+			case IServerBrowser::TYPE_DDNET:
+				Network = NETWORK_DDNET;
+				LegacySetType = IServerBrowser::SET_DDNET_ADD;
+				pExcludeCountries = g_Config.m_BrFilterExcludeCountries;
+				pExcludeTypes = g_Config.m_BrFilterExcludeTypes;
+				break;
+			case IServerBrowser::TYPE_KOG:
+				Network = NETWORK_KOG;
+				LegacySetType = IServerBrowser::SET_KOG_ADD;
+				pExcludeCountries = g_Config.m_BrFilterExcludeCountriesKoG;
+				pExcludeTypes = g_Config.m_BrFilterExcludeTypesKoG;
+				break;
+			default:
+				dbg_assert(0, "invalid network");
+			}
+			// remove unknown elements of exclude list
+			CountryFilterClean(Network);
+			TypeFilterClean(Network);
 
-                int MaxServers = 0;
-                for(int i = 0; i < m_aNetworks[Network].m_NumCountries; i++)
-                {
-                        CNetworkCountry *pCntr = &m_aNetworks[Network].m_aCountries[i];
-                        MaxServers = maximum(MaxServers, pCntr->m_NumServers);
-                }
+			int MaxServers = 0;
+			for(int i = 0; i < m_aNetworks[Network].m_NumCountries; i++)
+			{
+				CNetworkCountry *pCntr = &m_aNetworks[Network].m_aCountries[i];
+				MaxServers = maximum(MaxServers, pCntr->m_NumServers);
+			}
 
-                for(int g = 0; g < MaxServers; g++)
-                {
-                        for(int i = 0; i < m_aNetworks[Network].m_NumCountries; i++)
-                        {
-                                CNetworkCountry *pCntr = &m_aNetworks[Network].m_aCountries[i];
+			for(int g = 0; g < MaxServers; g++)
+			{
+				for(int i = 0; i < m_aNetworks[Network].m_NumCountries; i++)
+				{
+					CNetworkCountry *pCntr = &m_aNetworks[Network].m_aCountries[i];
 
-                                // check for filter
-                                if(DDNetFiltered(pExcludeCountries, pCntr->m_aName))
-                                        continue;
+					// check for filter
+					if(DDNetFiltered(pExcludeCountries, pCntr->m_aName))
+						continue;
 
-                                if(g >= pCntr->m_NumServers)
-                                        continue;
+					if(g >= pCntr->m_NumServers)
+						continue;
 
-                                if(DDNetFiltered(pExcludeTypes, pCntr->m_aTypes[g]))
-					continue;
-				aWantedAddresses.push_back(pCntr->m_aServers[g]);
-                        }
-                }
+					if(DDNetFiltered(pExcludeTypes, pCntr->m_aTypes[g]))
+						continue;
+					aWantedAddresses.push_back(pCntr->m_aServers[g]);
+				}
+			}
+		}
 		std::vector<int> aSortedServers;
 		std::vector<int> aSortedLegacyServers;
 		for(int i = 0; i < NumServers; i++)
@@ -835,6 +843,14 @@ void CServerBrowser::UpdateFromHttp()
 			aSortedLegacyServers.push_back(i);
 		}
 
+		class CWantedAddrComparer
+		{
+		public:
+			bool operator()(const NETADDR &a, const NETADDR &b)
+			{
+				return net_addr_comp(&a, &b) < 0;
+			}
+		};
 		class CAddrComparer
 		{
 		public:
@@ -854,6 +870,7 @@ void CServerBrowser::UpdateFromHttp()
 			}
 		};
 
+		std::sort(aWantedAddresses.begin(), aWantedAddresses.end(), CWantedAddrComparer());
 		std::sort(aSortedServers.begin(), aSortedServers.end(), CAddrComparer{m_pHttp});
 		std::sort(aSortedLegacyServers.begin(), aSortedLegacyServers.end(), CLegacyAddrComparer{m_pHttp});
 
@@ -925,7 +942,7 @@ void CServerBrowser::Update(bool ForceResort)
 
 	m_pHttp->Update();
 
-	if(m_ServerlistType != TYPE_FAVORITES && m_ServerlistType != TYPE_LAN && m_RefreshingHttp && !m_pHttp->IsRefreshing())
+	if(m_ServerlistType != TYPE_LAN && m_RefreshingHttp && !m_pHttp->IsRefreshing())
 	{
 		m_RefreshingHttp = false;
 		UpdateFromHttp();
@@ -1364,6 +1381,47 @@ void CServerBrowser::TypeFilterClean(int Network)
 	}
 
 	str_copy(pExcludeTypes, aNewList, sizeof(g_Config.m_BrFilterExcludeTypes));
+}
+
+int CServerInfo::EstimateLatency(int Loc1, int Loc2)
+{
+	if(Loc1 == LOC_UNKNOWN || Loc2 == LOC_UNKNOWN)
+	{
+		return 999;
+	}
+	if(Loc1 != Loc2)
+	{
+		return 149;
+	}
+	return 49;
+}
+bool CServerInfo::ParseLocation(int *pResult, const char *pString)
+{
+	*pResult = LOC_UNKNOWN;
+	int Length = str_length(pString);
+	if(Length < 2)
+	{
+		return true;
+	}
+	// ISO continent code. Allow antarctica, but treat it as unknown.
+	static const char LOCATIONS[][3] = {
+		"an", // LOC_UNKNOWN
+		"af", // LOC_AFRICA
+		"as", // LOC_ASIA
+		"oc", // LOC_AUSTRALIA
+		"eu", // LOC_EUROPE
+		"na", // LOC_NORTH_AMERICA
+		"sa", // LOC_SOUTH_AMERICA
+	};
+	for(unsigned i = 0; i < sizeof(LOCATIONS) / sizeof(LOCATIONS[0]); i++)
+	{
+		if(str_comp_num(pString, LOCATIONS[i], 2) == 0)
+		{
+			*pResult = i;
+			return false;
+		}
+	}
+	return true;
 }
 
 bool IsVanilla(const CServerInfo *pInfo)
