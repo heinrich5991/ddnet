@@ -281,6 +281,23 @@ const char *CGameTeams::SetCharacterTeam(int ClientID, int Team)
 	if(m_Core.Team(ClientID) != TEAM_SUPER && GetSaving(m_Core.Team(ClientID)))
 		return "This team is currently saving";
 
+	if(!m_Core.GetSolo(ClientID))
+	{
+		CCharacter *pChar = Character(ClientID);
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			CCharacter *pOther = Character(i);
+			if(ClientID == i || !pOther || m_Core.GetSolo(i) || Team != m_Core.Team(i))
+			{
+				continue;
+			}
+			if(distance(pChar->Core()->m_Pos, pOther->Core()->m_Pos) < CCharacter::ms_PhysSize * 1.25f)
+			{
+				return "Your position is blocked by another tee";
+			}
+		}
+	}
+
 	SetForceCharacterTeam(ClientID, Team);
 	return nullptr;
 }
