@@ -1191,8 +1191,8 @@ void CEditor::DoToolbar(CUIRect ToolBar)
 					int Height = 64;
 					if(pQuadLayer->m_Image >= 0)
 					{
-						Width = m_Map.m_lImages[pQuadLayer->m_Image]->m_Width;
-						Height = m_Map.m_lImages[pQuadLayer->m_Image]->m_Height;
+						Width = m_Map.m_lImages[pQuadLayer->m_Image]->m_Width / 2;
+						Height = m_Map.m_lImages[pQuadLayer->m_Image]->m_Height / 2;
 					}
 
 					pQuadLayer->NewQuad(x, y, Width, Height);
