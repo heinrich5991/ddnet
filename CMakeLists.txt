@@ -874,8 +874,10 @@ add_library(rust-bridge-shared EXCLUDE_FROM_ALL OBJECT ${RUST_BRIDGE_SHARED})
 list(APPEND TARGETS_OWN rust-bridge-shared)
 
 add_custom_command(
-  OUTPUT release/libddnet_engine_shared.a
-  COMMAND CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} cargo build --release
+  #OUTPUT release/libddnet_engine_shared.a
+  #COMMAND CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} cargo build --release
+  OUTPUT x86_64-unknown-linux-gnu/release/libddnet_engine_shared.a
+  COMMAND CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} cargo +nightly build -Z build-std=std,panic_abort --target x86_64-unknown-linux-gnu --release
   USES_TERMINAL
   DEPENDS
     ${RUST_BASE}
@@ -886,11 +888,12 @@ add_custom_command(
 )
 
 foreach(rust_target engine_shared)
-  add_custom_target(rust_${rust_target}_target DEPENDS ${PROJECT_BINARY_DIR}/release/libddnet_${rust_target}.a)
+  add_custom_target(rust_${rust_target}_target DEPENDS ${PROJECT_BINARY_DIR}/x86_64-unknown-linux-gnu/release/libddnet_${rust_target}.a)
   add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
   set_target_properties(rust_${rust_target} PROPERTIES
-    IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/release/libddnet_${rust_target}.a
+    IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/x86_64-unknown-linux-gnu/release/libddnet_${rust_target}.a
   )
+  add_dependencies(rust_${rust_target} rust_${rust_target}_target)
 endforeach()
 
 ########################################################################
