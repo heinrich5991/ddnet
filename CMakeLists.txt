@@ -852,6 +852,7 @@ set_glob(RUST_ENGINE_INTERFACE GLOB "rs;toml" src/engine
 
 set_glob(RUST_ENGINE_SHARED GLOB_RECURSE "rs;toml" src/engine/shared
   Cargo.toml
+  build.rs
   config.rs
   lib.rs
   rust_version.rs
