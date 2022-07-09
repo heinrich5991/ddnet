@@ -834,6 +834,66 @@ if(NOT CRYPTO_FOUND)
 endif()
 
 ########################################################################
+# RUST
+########################################################################
+
+set_glob(RUST_BASE GLOB_RECURSE "rs;toml" src/base
+  Cargo.toml
+  color.rs
+  lib.rs
+  rust.rs
+)
+
+set_glob(RUST_ENGINE_INTERFACE GLOB "rs;toml" src/engine
+  Cargo.toml
+  console.rs
+  lib.rs
+)
+
+set_glob(RUST_ENGINE_SHARED GLOB_RECURSE "rs;toml" src/engine/shared
+  Cargo.toml
+  config.rs
+  lib.rs
+  rust_version.rs
+)
+
+set_src(RUST_BRIDGE_SHARED GLOB_RECURSE src/rust-bridge
+  cpp/console.cpp
+  cpp/console.h
+  engine/shared/rust_version.cpp
+  engine/shared/rust_version.h
+)
+
+set_glob(RUST_MASTERSRV GLOB "rs;toml" src/mastersrv/src
+  addr.rs
+  locations.rs
+  main.rs
+)
+
+add_library(rust-bridge-shared EXCLUDE_FROM_ALL OBJECT ${RUST_BRIDGE_SHARED})
+list(APPEND TARGETS_OWN rust-bridge-shared)
+
+add_custom_command(
+  OUTPUT release/libddnet_engine_shared.a
+  COMMAND CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} cargo build --release
+  USES_TERMINAL
+  DEPENDS
+    ${RUST_BASE}
+    ${RUST_ENGINE_INTERFACE}
+    ${RUST_ENGINE_SHARED}
+    Cargo.toml
+    Cargo.lock
+)
+
+foreach(rust_target engine_shared)
+  add_custom_target(rust_${rust_target}_target DEPENDS ${PROJECT_BINARY_DIR}/release/libddnet_${rust_target}.a)
+  add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
+  set_target_properties(rust_${rust_target} PROPERTIES
+    IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/release/libddnet_${rust_target}.a
+  )
+endforeach()
+
+########################################################################
 # DATA
 ########################################################################
 
@@ -1701,6 +1761,7 @@ set_src(BASE GLOB_RECURSE src/base
   log.h
   logger.h
   math.h
+  rust.h
   system.cpp
   system.h
   tl/threading.h
@@ -1731,6 +1792,7 @@ set_src(ENGINE_INTERFACE GLOB src/engine
   keys.h
   map.h
   message.h
+  rust.h
   server.h
   serverbrowser.h
   sound.h
@@ -2145,6 +2207,7 @@ if(CLIENT)
     ${VULKAN_LIBRARIES}
 
     ${TARGET_STEAMAPI}
+    rust_engine_shared
 
     ${PLATFORM_CLIENT_LIBS}
 
@@ -2186,6 +2249,7 @@ if(CLIENT)
       $<TARGET_OBJECTS:engine-gfx>
       $<TARGET_OBJECTS:engine-shared>
       $<TARGET_OBJECTS:game-shared>
+      $<TARGET_OBJECTS:rust-bridge-shared>
     )
   else()
     add_executable(${TARGET_CLIENT} WIN32
@@ -2196,6 +2260,7 @@ if(CLIENT)
       $<TARGET_OBJECTS:engine-gfx>
       $<TARGET_OBJECTS:engine-shared>
       $<TARGET_OBJECTS:game-shared>
+      $<TARGET_OBJECTS:rust-bridge-shared>
     )
   endif()
   target_link_libraries(${TARGET_CLIENT} ${LIBS_CLIENT})
@@ -2369,9 +2434,10 @@ if(SERVER)
   # Libraries
   set(LIBS_SERVER
     ${LIBS}
+    ${MINIUPNPC_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${TARGET_ANTIBOT}
-    ${MINIUPNPC_LIBRARIES}
+    rust_engine_shared
     # Add pthreads (on non-Windows) at the end, so that other libraries can depend
     # on it.
     ${CMAKE_THREAD_LIBS_INIT}
@@ -2385,6 +2451,7 @@ if(SERVER)
     ${SERVER_ICON}
     $<TARGET_OBJECTS:engine-shared>
     $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:rust-bridge-shared>
   )
   target_link_libraries(${TARGET_SERVER} ${LIBS_SERVER})
   target_include_directories(${TARGET_SERVER} PRIVATE ${PNG_INCLUDE_DIRS})
@@ -2437,7 +2504,7 @@ if(TOOLS)
       set(TOOL_LIBS ${LIBS})
       if(TOOL MATCHES "^(dilate|map_convert_07|map_create_pixelart|map_optimize|map_extract|map_replace_image)$")
         list(APPEND TOOL_INCLUDE_DIRS ${PNG_INCLUDE_DIRS})
-	list(APPEND TOOL_DEPS $<TARGET_OBJECTS:engine-gfx>)
+        list(APPEND TOOL_DEPS $<TARGET_OBJECTS:engine-gfx>)
         list(APPEND TOOL_LIBS ${PNG_LIBRARIES})
       endif()
       if(TOOL MATCHES "^config_")
@@ -3057,6 +3124,7 @@ foreach(target ${TARGETS_OWN})
   endif()
   target_include_directories(${target} PRIVATE ${PROJECT_BINARY_DIR}/src)
   target_include_directories(${target} PRIVATE src)
+  target_include_directories(${target} PRIVATE src/rust-bridge)
   target_compile_definitions(${target} PRIVATE $<$<CONFIG:Debug>:CONF_DEBUG>)
   target_include_directories(${target} SYSTEM PRIVATE ${CURL_INCLUDE_DIRS} ${SQLite3_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
   target_compile_definitions(${target} PRIVATE GLEW_STATIC)

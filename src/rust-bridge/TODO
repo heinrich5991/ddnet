@@ -1,0 +1,1 @@
+rename engine/console_rs.cpp and engine/shared/rust_version.cpp, maybe remove engine/, maybe add something to say that console_rs.cpp is purely for the Rust interface of the C++ code, and rust_version.cpp vice versa

@@ -1,0 +1,14 @@
+[package]
+name = "ddnet-engine-shared"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+path = "lib.rs"
+
+[dependencies]
+ddnet-base = { path = "../../base" }
+ddnet-engine = { path = ".." }
+
+cxx = "1.0"

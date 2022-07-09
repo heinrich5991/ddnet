@@ -322,7 +322,7 @@ LOG_COLOR ColorToLogColor(ColorRGBA Color)
 		(uint8_t)(Color.b * 255.0)};
 }
 
-void CConsole::Print(int Level, const char *pFrom, const char *pStr, ColorRGBA PrintColor)
+void CConsole::Print(int Level, const char *pFrom, const char *pStr, ColorRGBA PrintColor) const
 {
 	LEVEL LogLevel = IConsole::ToLogLevel(Level);
 	// if the color is pure white, use default terminal color

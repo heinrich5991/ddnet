@@ -1,0 +1,13 @@
+[workspace]
+members = [
+  "src/base",
+  "src/engine",
+  "src/engine/shared",
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
