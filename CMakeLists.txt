@@ -892,15 +892,26 @@ endif()
 if(RUST_NIGHTLY)
   list(APPEND CARGO_BUILD -Z build-std=std,panic_abort)
 endif()
-if(CMAKE_BUILD_TYPE STREQUAL Debug)
-  set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/debug")
-else()
-  set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/release")
-  list(APPEND CARGO_BUILD --release)
-endif()
+set(CARGO_BUILD_DIR_DEBUG "${CARGO_BUILD_DIR}/debug")
+set(CARGO_BUILD_DIR_RELEASE "${CARGO_BUILD_DIR}/release")
+set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/$<$<CONFIG:Debug>:debug>$<$<NOT:$<CONFIG:Debug>>:release>")
+list(APPEND CARGO_BUILD $<$<NOT:$<CONFIG:Debug>>:--release>)
+
+set(RUST_OUTPUTS)
+foreach(rust_target engine_shared)
+  set(LIBRARY_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  add_custom_target(rust_${rust_target}_target DEPENDS "${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
+  add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
+  set_target_properties(rust_${rust_target} PROPERTIES
+    IMPORTED_LOCATION "${CARGO_BUILD_DIR_RELEASE}/${LIBRARY_NAME}"
+    IMPORTED_LOCATION_DEBUG "${CARGO_BUILD_DIR_DEBUG}/${LIBRARY_NAME}"
+  )
+  add_dependencies(rust_${rust_target} rust_${rust_target}_target)
+  list(APPEND RUST_OUTPUTS "${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
+endforeach()
 
 add_custom_command(
-  OUTPUT ${CARGO_BUILD_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_engine_shared${CMAKE_STATIC_LIBRARY_SUFFIX}
+  OUTPUT ${RUST_OUTPUTS}
   COMMAND ${CARGO_BUILD}
   USES_TERMINAL
   DEPENDS
@@ -910,15 +921,6 @@ add_custom_command(
     Cargo.toml
     Cargo.lock
 )
-
-foreach(rust_target engine_shared)
-  add_custom_target(rust_${rust_target}_target DEPENDS ${CARGO_BUILD_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX})
-  add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
-  set_target_properties(rust_${rust_target} PROPERTIES
-    IMPORTED_LOCATION ${CARGO_BUILD_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}
-  )
-  add_dependencies(rust_${rust_target} rust_${rust_target}_target)
-endforeach()
 
 ########################################################################
 # DATA
