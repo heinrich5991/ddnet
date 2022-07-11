@@ -25,10 +25,9 @@ jobs:
           cmake-path: /usr/bin/
           cmake-args: -G Ninja -DTEST_MYSQL=ON
           cmake-init-env: CXXFLAGS=-Werror
+          gtest-env: GTEST_FILTER=-*SQLite*
           package-file: "*-linux_x86_64.tar.xz"
           fancy: false
-          env:
-            GTEST_FILTER: -*SQLite*
         - os: macOS-latest
           cmake-args: -G Ninja
           cmake-init-env: CXXFLAGS=-Werror
@@ -101,7 +100,7 @@ jobs:
     - name: Test debug
       run: |
         cd debug
-        ${{ matrix.cmake-path }}cmake --build . --config Debug --target run_tests ${{ matrix.build-args }}
+        ${{ matrix.cmake-path }}cmake -E env ${{ matrix.gtest-env }} ${{ matrix.cmake-path }}cmake --build . --config Debug --target run_tests ${{ matrix.build-args }}
     - name: Run debug server
       run: |
         cd debug
@@ -116,7 +115,7 @@ jobs:
     - name: Test release
       run: |
         cd release
-        ${{ matrix.cmake-path }}cmake --build . --config Release --target run_tests ${{ matrix.build-args }}
+        ${{ matrix.cmake-path }}cmake -E env ${{ matrix.gtest-env }} ${{ matrix.cmake-path }}cmake --build . --config Release --target run_tests ${{ matrix.build-args }}
     - name: Run release server
       run: |
         cd release
@@ -146,7 +145,7 @@ jobs:
       if: matrix.fancy
       run: |
         cd fancy
-        ${{ matrix.cmake-path }}cmake --build . --config RelWithDebInfo --target run_tests ${{ matrix.build-args }}
+        ${{ matrix.cmake-path }}cmake -E env ${{ matrix.gtest-env }} ${{ matrix.cmake-path }}cmake --build . --config RelWithDebInfo --target run_tests ${{ matrix.build-args }}
 
     - name: Run fancy server
       if: matrix.fancy
