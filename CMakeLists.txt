@@ -547,6 +547,7 @@ find_package(Opus)
 find_package(Opusfile)
 find_package(PNG)
 find_package(PythonInterp 3)
+find_package(Rust)
 find_package(SDL2)
 find_package(SQLite3)
 if(DISCORD)
@@ -590,6 +591,7 @@ if(TARGET_OS STREQUAL "mac")
 endif()
 message(STATUS ${TARGET})
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "Rust version: ${RUST_VERSION_STRING}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 message(STATUS "Dependencies:")
@@ -874,11 +876,23 @@ set_glob(RUST_MASTERSRV GLOB "rs;toml" src/mastersrv/src
 add_library(rust-bridge-shared EXCLUDE_FROM_ALL OBJECT ${RUST_BRIDGE_SHARED})
 list(APPEND TARGETS_OWN rust-bridge-shared)
 
+if(NOT RUST_NIGHTLY)
+  set(CARGO_BUILD CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} ${RUST_CARGO} build)
+  set(CARGO_BUILD_DIR "${PROJECT_BINARY_DIR}")
+else()
+  set(CARGO_BUILD CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} ${RUST_CARGO} build -Z build-std=std,panic_abort --target ${RUST_TARGET_HOST})
+  set(CARGO_BUILD_DIR "${PROJECT_BINARY_DIR}/${RUST_TARGET_HOST}")
+endif()
+if(CMAKE_BUILD_TYPE STREQUAL Debug)
+  set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/debug")
+else()
+  set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/release")
+  list(APPEND CARGO_BUILD --release)
+endif()
+
 add_custom_command(
-  #OUTPUT release/libddnet_engine_shared.a
-  #COMMAND CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} cargo build --release
-  OUTPUT x86_64-unknown-linux-gnu/release/libddnet_engine_shared.a
-  COMMAND CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} cargo +nightly build -Z build-std=std,panic_abort --target x86_64-unknown-linux-gnu --release
+  OUTPUT ${CARGO_BUILD_DIR}/libddnet_engine_shared.a
+  COMMAND ${CARGO_BUILD}
   USES_TERMINAL
   DEPENDS
     ${RUST_BASE}
@@ -889,10 +903,10 @@ add_custom_command(
 )
 
 foreach(rust_target engine_shared)
-  add_custom_target(rust_${rust_target}_target DEPENDS ${PROJECT_BINARY_DIR}/x86_64-unknown-linux-gnu/release/libddnet_${rust_target}.a)
+  add_custom_target(rust_${rust_target}_target DEPENDS ${CARGO_BUILD_DIR}/libddnet_${rust_target}.a)
   add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
   set_target_properties(rust_${rust_target} PROPERTIES
-    IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/x86_64-unknown-linux-gnu/release/libddnet_${rust_target}.a
+    IMPORTED_LOCATION ${CARGO_BUILD_DIR}/libddnet_${rust_target}.a
   )
   add_dependencies(rust_${rust_target} rust_${rust_target}_target)
 endforeach()
