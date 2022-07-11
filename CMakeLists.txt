@@ -912,10 +912,10 @@ add_custom_command(
 )
 
 foreach(rust_target engine_shared)
-  add_custom_target(rust_${rust_target}_target DEPENDS ${CARGO_BUILD_DIR}/libddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX})
+  add_custom_target(rust_${rust_target}_target DEPENDS ${CARGO_BUILD_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX})
   add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
   set_target_properties(rust_${rust_target} PROPERTIES
-    IMPORTED_LOCATION ${CARGO_BUILD_DIR}/libddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION ${CARGO_BUILD_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}
   )
   add_dependencies(rust_${rust_target} rust_${rust_target}_target)
 endforeach()
