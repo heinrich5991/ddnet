@@ -726,7 +726,7 @@ if(TARGET_OS STREQUAL "windows")
   set(PLATFORM_LIBS)
   list(APPEND PLATFORM_LIBS shlwapi) # PathIsRelativeW
   list(APPEND PLATFORM_LIBS version ws2_32) # Windows sockets
-  list(APPEND PLATFORM_LIBS bcrypt) # for Rust (https://github.com/rust-lang/rust/issues/91974)
+  list(APPEND PLATFORM_LIBS bcrypt userenv) # for Rust (https://github.com/rust-lang/rust/issues/91974)
 elseif(TARGET_OS STREQUAL "mac")
   find_library(CARBON Carbon)
   find_library(COCOA Cocoa)
@@ -2677,6 +2677,12 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
     USES_TERMINAL
   )
 endif()
+
+add_custom_target(show_engine_objects
+  COMMAND echo "'$<TARGET_OBJECTS:engine-shared>'"
+  DEPENDS
+  USES_TERMINAL
+)
 
 add_custom_target(run_integration_tests
   COMMAND ${PROJECT_BINARY_DIR}/integration_test.sh ${INTEGRATIONTESTRUNNER_ARGS}
