@@ -1,7 +1,7 @@
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-Clink-args=/NODEFAULTLIB"]
+rustflags = ["-Clink-args=/MTd"]
 #rustflags = ["-Ctarget-feature=+crt-static"]
 
 [target.i686-pc-windows-msvc]
-rustflags = ["-Clink-args=/NODEFAULTLIB"]
+rustflags = ["-Clink-args=/MTd"]
 #rustflags = ["-Ctarget-feature=+crt-static"]
