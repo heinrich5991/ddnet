@@ -114,10 +114,10 @@ class CConsole : public IConsole
 			m_apArgs[m_NumArgs++] = pArg;
 		}
 
-		const char *GetString(unsigned Index) override;
-		int GetInteger(unsigned Index) override;
-		float GetFloat(unsigned Index) override;
-		ColorHSLA GetColor(unsigned Index, bool Light) override;
+		const char *GetString(unsigned Index) const override;
+		int GetInteger(unsigned Index) const override;
+		float GetFloat(unsigned Index) const override;
+		ColorHSLA GetColor(unsigned Index, bool Light) const override;
 
 		void RemoveArgument(unsigned Index) override
 		{
@@ -142,7 +142,7 @@ class CConsole : public IConsole
 		bool HasVictim();
 		void SetVictim(int Victim);
 		void SetVictim(const char *pVictim);
-		int GetVictim() override;
+		int GetVictim() const override;
 	};
 
 	int ParseStart(CResult *pResult, const char *pString, int Length);

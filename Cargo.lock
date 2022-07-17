@@ -50,6 +50,8 @@ version = "0.0.1"
 dependencies = [
  "cxx",
  "ddnet-base",
+ "ddnet-engine-shared",
+ "ddnet-test",
 ]
 
 [[package]]
@@ -60,6 +62,10 @@ dependencies = [
  "ddnet-base",
  "ddnet-engine",
 ]
+
+[[package]]
+name = "ddnet-test"
+version = "0.0.1"
 
 [[package]]
 name = "link-cplusplus"

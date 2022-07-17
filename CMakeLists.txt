@@ -883,8 +883,10 @@ list(APPEND TARGETS_OWN rust-bridge-shared)
 
 set(CARGO_BUILD_DIR "${PROJECT_BINARY_DIR}")
 set(CARGO_BUILD ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} ${RUST_CARGO} build)
+set(CARGO_TEST ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} ${RUST_CARGO} test)
 if(MSVC)
   list(INSERT CARGO_BUILD 0 ${CMAKE_COMMAND} -E env $<$<CONFIG:Debug>:CFLAGS=/MTd> $<$<CONFIG:Debug>:CXXFLAGS=/MTd>)
+  list(INSERT CARGO_TEST 0 ${CMAKE_COMMAND} -E env CFLAGS=/MTd)
 endif()
 if(DEFINED CMAKE_RUST_COMPILER_TARGET OR RUST_NIGHTLY)
   if(DEFINED CMAKE_RUST_COMPILER_TARGET)
@@ -893,6 +895,7 @@ if(DEFINED CMAKE_RUST_COMPILER_TARGET OR RUST_NIGHTLY)
     set(RUST_TARGET ${RUST_TARGET_HOST})
   endif()
   list(APPEND CARGO_BUILD --target ${RUST_TARGET})
+  list(APPEND CARGO_TEST --target ${RUST_TARGET})
   set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/${RUST_TARGET}")
 endif()
 if(RUST_NIGHTLY)
@@ -2690,10 +2693,22 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
   )
 endif()
 
-add_custom_target(show_engine_objects
-  COMMAND echo "'$<TARGET_OBJECTS:engine-shared>'"
-  DEPENDS
+add_library(rust_test STATIC EXCLUDE_FROM_ALL
+  $<TARGET_OBJECTS:engine-gfx>
+  $<TARGET_OBJECTS:engine-shared>
+  $<TARGET_OBJECTS:game-shared>
+  $<TARGET_OBJECTS:rust-bridge-shared>
+  ${DEPS}
+)
+
+list(APPEND TARGETS_OWN rust_test)
+list(APPEND TARGETS_LINK rust_test)
+
+add_custom_target(run_rust_tests
+  COMMAND ${CMAKE_COMMAND} -E env DDNET_TEST_LIBRARIES=$<TARGET_FILE:rust_test> ${CARGO_TEST}
   USES_TERMINAL
+  DEPENDS rust_test
+  VERBATIM
 )
 
 add_custom_target(run_integration_tests

@@ -1,0 +1,13 @@
+[package]
+name = "ddnet-test"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+path = "lib.rs"
+
+[features]
+link-test-libraries = []
+
+[dependencies]
+#link-cplusplus = "1.0.6"

@@ -6,7 +6,7 @@ publish = false
 license = "Zlib"
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["rlib", "staticlib"]
 path = "lib.rs"
 
 [dependencies]
