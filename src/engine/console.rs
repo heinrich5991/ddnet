@@ -433,13 +433,13 @@ mod ffi {
         ///   player has client ID 33, then we get the following
         ///   arguments:
         ///   ```text
-        ///   # "33" "60"
+        ///   ## "33" "60"
         ///   muteid me 60
         ///
-        ///   # "12" "120" "You're a wonderful person"
+        ///   ## "12" "120" "You're a wonderful person"
         ///   muteid 12 120 You're a wonderful person
         ///
-        ///   # "0" "180"; "1" "180"; …, "63" "180"
+        ///   ## "0" "180"; "1" "180"; …, "63" "180"
         ///   muteid all 180
         ///   ```
         ///
