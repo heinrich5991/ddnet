@@ -881,33 +881,33 @@ set_glob(RUST_MASTERSRV GLOB "rs;toml" src/mastersrv/src
 add_library(rust-bridge-shared EXCLUDE_FROM_ALL OBJECT ${RUST_BRIDGE_SHARED})
 list(APPEND TARGETS_OWN rust-bridge-shared)
 
-set(CARGO_BUILD_DIR "${PROJECT_BINARY_DIR}")
+set(CARGO_BUILD_DIR "")
 set(CARGO_BUILD ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} DDNET_TEST_NO_LINK=1 ${RUST_CARGO} build)
 set(CARGO_TEST ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${PROJECT_BINARY_DIR} ${RUST_CARGO} test)
 if(MSVC)
   list(INSERT CARGO_BUILD 0 ${CMAKE_COMMAND} -E env $<$<CONFIG:Debug>:CFLAGS=/MTd> $<$<CONFIG:Debug>:CXXFLAGS=/MTd>)
   list(INSERT CARGO_TEST 0 ${CMAKE_COMMAND} -E env CFLAGS=/MTd)
 endif()
-if(DEFINED CMAKE_RUST_COMPILER_TARGET OR RUST_NIGHTLY)
+if(RUST_NIGHTLY)
+  list(APPEND CARGO_BUILD -Z build-std=std,panic_abort)
+endif()
+if(NOT CMAKE_OSX_ARCHITECTURES AND (DEFINED CMAKE_RUST_COMPILER_TARGET OR RUST_NIGHTLY))
   if(DEFINED CMAKE_RUST_COMPILER_TARGET)
+    list(APPEND CARGO_TEST --target ${CMAKE_RUST_COMPILER_TARGET})
     set(RUST_TARGET ${CMAKE_RUST_COMPILER_TARGET})
   else()
     set(RUST_TARGET ${RUST_TARGET_HOST})
   endif()
   list(APPEND CARGO_BUILD --target ${RUST_TARGET})
-  list(APPEND CARGO_TEST --target ${RUST_TARGET})
-  set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/${RUST_TARGET}")
+  set(CARGO_BUILD_DIR "${RUST_TARGET}/")
 endif()
-if(RUST_NIGHTLY)
-  list(APPEND CARGO_BUILD -Z build-std=std,panic_abort)
-endif()
-set(CARGO_BUILD_DIR_DEBUG "${CARGO_BUILD_DIR}/debug")
-set(CARGO_BUILD_DIR_RELEASE "${CARGO_BUILD_DIR}/release")
+set(CARGO_BUILD_DIR_DEBUG "${CARGO_BUILD_DIR}debug")
+set(CARGO_BUILD_DIR_RELEASE "${CARGO_BUILD_DIR}release")
 if(GENERATOR_IS_MULTI_CONFIG)
   if(CMAKE_VERSION VERSION_LESS 3.20)
     message(SEND_ERROR "Multi-config generators only supported from CMake 3.20 and up")
   else()
-    set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}/$<$<CONFIG:Debug>:debug>$<$<NOT:$<CONFIG:Debug>>:release>")
+    set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}$<$<CONFIG:Debug>:debug>$<$<NOT:$<CONFIG:Debug>>:release>")
   endif()
 else()
   if(CMAKE_BUILD_TYPE STREQUAL Debug)
@@ -918,31 +918,81 @@ else()
 endif()
 list(APPEND CARGO_BUILD $<$<NOT:$<CONFIG:Debug>>:--release>)
 
-set(RUST_OUTPUTS)
-foreach(rust_target engine_shared)
-  set(LIBRARY_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  add_custom_target(rust_${rust_target}_target DEPENDS "${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
-  add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
-  set_target_properties(rust_${rust_target} PROPERTIES
-    IMPORTED_LOCATION "${CARGO_BUILD_DIR_RELEASE}/${LIBRARY_NAME}"
-    IMPORTED_LOCATION_DEBUG "${CARGO_BUILD_DIR_DEBUG}/${LIBRARY_NAME}"
-  )
-  add_dependencies(rust_${rust_target} rust_${rust_target}_target)
-  list(APPEND RUST_OUTPUTS "${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
-endforeach()
+if(CMAKE_OSX_ARCHITECTURES)
+  set(RUST_OSX_ARCHITECTURES)
+  foreach(arch ${CMAKE_OSX_ARCHITECTURES})
+    if(${arch} STREQUAL aarch64)
+      list(APPEND RUST_OSX_ARCHITECTURES aarch64-apple-darwin)
+    elseif(${arch} STREQUAL x86_64)
+      list(APPEND RUST_OSX_ARCHITECTURES x86_64-apple-darwin)
+    else()
+      message(SEND_ERROR "CMAKE_OSX_ARCHITECTURES' architecture ${arch} unknown, can't build Rust code (known: aarch64, x86_64)")
+    endif()
+  endforeach()
+endif()
 
-add_custom_command(
-  OUTPUT ${RUST_OUTPUTS}
-  COMMAND ${CARGO_BUILD}
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-  USES_TERMINAL
-  DEPENDS
-    ${RUST_BASE}
-    ${RUST_ENGINE_INTERFACE}
-    ${RUST_ENGINE_SHARED}
-    Cargo.toml
-    Cargo.lock
+set(RUST_SRC
+      ${RUST_BASE}
+      ${RUST_ENGINE_INTERFACE}
+      ${RUST_ENGINE_SHARED}
+      Cargo.toml
+      Cargo.lock
 )
+set(RUST_TARGETS engine_shared)
+if(NOT CMAKE_OSX_ARCHITECTURES)
+  set(RUST_OUTPUTS)
+  foreach(rust_target ${RUST_TARGETS})
+    set(LIBRARY_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
+    add_custom_target(rust_${rust_target}_target DEPENDS "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
+    set_target_properties(rust_${rust_target} PROPERTIES
+      IMPORTED_LOCATION "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_RELEASE}/${LIBRARY_NAME}"
+      IMPORTED_LOCATION_DEBUG "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_DEBUG}/${LIBRARY_NAME}"
+    )
+    add_dependencies(rust_${rust_target} rust_${rust_target}_target)
+    list(APPEND RUST_OUTPUTS "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
+  endforeach()
+  add_custom_command(
+    OUTPUT ${RUST_OUTPUTS}
+    COMMAND ${CARGO_BUILD}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    USES_TERMINAL
+    DEPENDS ${RUST_SRC}
+  )
+else()
+  foreach(rust_target ${RUST_TARGETS})
+    set(LIBRARY_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    add_library(rust_${rust_target} STATIC IMPORTED GLOBAL)
+    set_target_properties(rust_${rust_target} PROPERTIES
+      IMPORTED_LOCATION "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_RELEASE}/${LIBRARY_NAME}"
+      IMPORTED_LOCATION_DEBUG "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_DEBUG}/${LIBRARY_NAME}"
+    )
+    add_custom_target(rust_${rust_target}_target DEPENDS "${PROJECT_BINARY_DIR}/${LIBRARY_NAME}")
+    set(ARCH_LIBRARIES)
+    foreach(arch ${RUST_OSX_ARCHITECTURES})
+      list(APPEND ARCH_LIBRARIES "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${arch}/${LIBRARY_NAME}")
+    endforeach()
+    add_custom_command(
+      OUTPUT "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${LIBRARY_NAME}"
+      COMMAND lipo ${ARCH_LIBRARIES} -create -output "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${LIBRARY_NAME}"
+      DEPENDS ${ARCH_LIBRARIES}
+    )
+  endforeach()
+  foreach(arch ${RUST_OSX_ARCHITECTURES})
+    set(RUST_OUTPUTS)
+    foreach(rust_target ${RUST_TARGETS})
+      set(LIBRARY_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+      list(APPEND RUST_OUTPUTS "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${arch}/${LIBRARY_NAME}")
+    endforeach()
+    add_custom_command(
+      OUTPUT ${RUST_OUTPUTS}
+      COMMAND ${CARGO_BUILD} --target=${arch}
+      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+      USES_TERMINAL
+      DEPENDS ${RUST_SRC}
+    )
+  endforeach()
+endif()
 
 ########################################################################
 # DATA
@@ -2689,7 +2739,7 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
   add_custom_target(run_tests
     COMMAND $<TARGET_FILE:${TARGET_TESTRUNNER}> ${TESTRUNNER_ARGS}
     COMMENT Running unit tests
-    DEPENDS ${TARGET_TESTRUNNER}
+    DEPENDS ${TARGET_TESTRUNNER} run_rust_tests
     USES_TERMINAL
   )
 endif()
