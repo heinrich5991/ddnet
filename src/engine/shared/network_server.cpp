@@ -6,6 +6,7 @@
 #include "config.h"
 #include "netban.h"
 #include "network.h"
+#include <backcompat/hacks.h>
 #include <engine/shared/compression.h>
 #include <engine/shared/packer.h>
 #include <engine/shared/protocol.h>
@@ -35,6 +36,26 @@ const unsigned char g_aDummyMapData[] = {
 	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
 	0x78, 0x9C, 0x63, 0x64, 0x60, 0x60, 0x60, 0x44, 0xC2, 0x00, 0x00, 0x38,
 	0x00, 0x05};
+
+CNetChunk NetChunkFrom2(const CNetChunk2 &Chunk)
+{
+	CNetChunk Result;
+	mem_zero(&Result, sizeof(Result));
+	Result.m_ClientId = Chunk.m_ClientId;
+	Result.m_Flags = Chunk.m_Flags;
+	Result.m_pData = Chunk.m_pData.data();
+	Result.m_DataSize = Chunk.m_pData.size();
+	return Result;
+}
+
+CNetChunk2 NetChunkTo2(const CNetChunk &Chunk)
+{
+	CNetChunk2 Result = {};
+	Result.m_ClientId = Chunk.m_ClientId;
+	Result.m_Flags = Chunk.m_Flags;
+	Result.m_pData = rust::Slice((const unsigned char *)Chunk.m_pData, Chunk.m_DataSize);
+	return Result;
+}
 
 bool CNetServer::Open(NETADDR BindAddr, CNetBan *pNetBan, int MaxClients, int MaxClientsPerIp)
 {
@@ -67,6 +88,19 @@ bool CNetServer::Open(NETADDR BindAddr, CNetBan *pNetBan, int MaxClients, int Ma
 	return true;
 }
 
+void CNetServer::HacksSendFunction(const CNetChunk2 &Packet2, void *pUserdata)
+{
+	CNetChunk Packet = NetChunkFrom2(Packet2);
+	((CNetServer *)pUserdata)->SendImpl(&Packet);
+}
+
+CHacks *CNetServer::CreateHacks()
+{
+	dbg_assert(!m_pHacks, "hacks can only be created once");
+	m_pHacks = ::CreateHacks(std::make_unique<CSendFunction>(HacksSendFunction, this)).into_raw();
+	return m_pHacks;
+}
+
 int CNetServer::SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser)
 {
 	m_pfnNewClient = pfnNewClient;
@@ -87,6 +121,12 @@ int CNetServer::SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_NEWCLIENT_N
 
 int CNetServer::Close()
 {
+	if(m_pHacks)
+	{
+		rust::Box<CHacks>::from_raw(m_pHacks);
+		m_pHacks = nullptr;
+	}
+
 	if(!m_Socket)
 		return 0;
 	return net_udp_close(m_Socket);
@@ -94,6 +134,11 @@ int CNetServer::Close()
 
 int CNetServer::Drop(int ClientId, const char *pReason)
 {
+	if(Hacks())
+	{
+		Hacks()->OnDisconnect(ClientId);
+	}
+
 	// TODO: insert lots of checks here
 
 	if(m_pfnDelClient)
@@ -257,6 +302,11 @@ int CNetServer::TryAcceptClient(NETADDR &Addr, SECURITY_TOKEN SecurityToken, boo
 		char aAddrStr[NETADDR_MAXSTRSIZE];
 		net_addr_str(&Addr, aAddrStr, sizeof(aAddrStr), true);
 		dbg_msg("security", "client accepted %s", aAddrStr);
+	}
+
+	if(Hacks())
+	{
+		Hacks()->OnConnect(Slot);
 	}
 
 	if(VanillaAuth)
@@ -492,6 +542,12 @@ void CNetServer::OnConnCtrlMsg(NETADDR &Addr, int ClientId, int ControlMsg, cons
 
 			// reset netconn and process rejoin
 			m_aSlots[ClientId].m_Connection.Reset(true);
+
+			if(Hacks())
+			{
+				Hacks()->OnDisconnect(ClientId);
+				Hacks()->OnConnect(ClientId);
+			}
 			m_pfnClientRejoin(ClientId, m_pUser);
 		}
 	}
@@ -608,10 +664,36 @@ static bool IsDDNetControlMsg(const CNetPacketConstruct *pPacket)
 	return false;
 }
 
+int CNetServer::Recv(CNetChunk *pChunk, SECURITY_TOKEN *pResponseToken)
+{
+	if(!Hacks())
+	{
+		return RecvImpl(pChunk, pResponseToken);
+	}
+
+	while(1)
+	{
+		CNetChunk2 Chunk2 = {};
+		if(Hacks()->GetRecvPacket(Chunk2))
+		{
+			*pChunk = NetChunkFrom2(Chunk2);
+			return 1;
+		}
+		if(!RecvImpl(pChunk, pResponseToken))
+		{
+			return 0;
+		}
+		if(Hacks()->OnRecvPacket(NetChunkTo2(*pChunk)))
+		{
+			return 1;
+		}
+	}
+}
+
 /*
 	TODO: chopp up this function into smaller working parts
 */
-int CNetServer::Recv(CNetChunk *pChunk, SECURITY_TOKEN *pResponseToken)
+int CNetServer::RecvImpl(CNetChunk *pChunk, SECURITY_TOKEN *pResponseToken)
 {
 	while(true)
 	{
@@ -719,6 +801,19 @@ int CNetServer::Recv(CNetChunk *pChunk, SECURITY_TOKEN *pResponseToken)
 }
 
 int CNetServer::Send(CNetChunk *pChunk)
+{
+	if(!Hacks())
+	{
+		return SendImpl(pChunk);
+	}
+	if(Hacks()->OnSendPacket(NetChunkTo2(*pChunk)))
+	{
+		return SendImpl(pChunk);
+	}
+	return 0;
+}
+
+int CNetServer::SendImpl(CNetChunk *pChunk)
 {
 	if(pChunk->m_DataSize >= NET_MAX_PAYLOAD)
 	{

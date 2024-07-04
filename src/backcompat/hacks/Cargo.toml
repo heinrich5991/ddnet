@@ -1,0 +1,24 @@
+[package]
+name = "ddnet-backcompat-hacks"
+version = "0.0.1"
+edition = "2021"
+publish = false
+license = "Zlib"
+
+[lib]
+crate-type = ["rlib", "staticlib"]
+path = "lib.rs"
+
+[dependencies]
+arrayvec = "0.5.2"
+ddnet-backcompat-proxy = { path = "../proxy" }
+ddnet-base = { path = "../../base" }
+ddnet-engine-shared = { path = "../../engine/shared" }
+libtw2-gamenet = { package = "libtw2-gamenet-ddnet", path = "../../../../libtw2/gamenet/ddnet" }
+libtw2-packer = { path = "../../../../libtw2/packer" }
+warn = "0.2.0"
+
+cxx = "1.0"
+
+[dev-dependencies]
+ddnet-test = { path = "../../rust-bridge/test", features = ["link-test-libraries"] }

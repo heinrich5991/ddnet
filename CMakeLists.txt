@@ -832,6 +832,14 @@ endif()
 # RUST
 ########################################################################
 
+set_glob(RUST_BACKCOMPAT GLOB_RECURSE "rs;toml" src/backcompat
+  hacks/Cargo.toml
+  hacks/lib.rs
+  proxy/Cargo.toml
+  proxy/ddnet.rs
+  proxy/lib.rs
+)
+
 set_glob(RUST_BASE GLOB_RECURSE "rs;toml" src/base
   Cargo.toml
   color.rs
@@ -845,7 +853,7 @@ set_glob(RUST_ENGINE_INTERFACE GLOB "rs;toml" src/engine
   lib.rs
 )
 
-set_glob(RUST_ENGINE_SHARED GLOB_RECURSE "rs;toml" src/engine/shared
+set_glob(RUST_ENGINE_SHARED GLOB "rs;toml" src/engine/shared
   Cargo.toml
   build.rs
   config.rs
@@ -858,6 +866,8 @@ set_src(RUST_BRIDGE_SHARED GLOB_RECURSE src/rust-bridge
   cpp/console.h
   engine/shared/rust_version.cpp
   engine/shared/rust_version.h
+  backcompat/hacks.cpp
+  backcompat/hacks.h
 )
 
 set_glob(RUST_MASTERSRV GLOB "rs;toml" src/mastersrv/src
@@ -926,13 +936,14 @@ if(CMAKE_OSX_ARCHITECTURES)
 endif()
 
 set(RUST_SRC
+      ${RUST_BACKCOMPAT}
       ${RUST_BASE}
       ${RUST_ENGINE_INTERFACE}
       ${RUST_ENGINE_SHARED}
       Cargo.toml
       Cargo.lock
 )
-set(RUST_TARGETS engine_shared)
+set(RUST_TARGETS engine_shared hacks)
 if(NOT CMAKE_OSX_ARCHITECTURES)
   set(RUST_OUTPUTS)
   foreach(rust_target ${RUST_TARGETS})
@@ -2625,6 +2636,7 @@ if(SERVER)
     ${MYSQL_LIBRARIES}
     ${TARGET_ANTIBOT}
     rust_engine_shared
+    rust_hacks
 
     ${LIBS}
   )

@@ -33,6 +33,7 @@
 #endif
 
 class CConfig;
+class CHacks;
 class CHostLookup;
 class CLogMessage;
 class CMsgPacker;
@@ -72,6 +73,7 @@ class CServer : public IServer
 	class IEngineAntibot *m_pAntibot;
 	class IRegister *m_pRegister;
 	IEngine *m_pEngine;
+	CHacks *m_pHacks;
 
 #if defined(CONF_UPNP)
 	CUPnP m_UPnP;
@@ -99,6 +101,7 @@ public:
 	class IEngineAntibot *Antibot() { return m_pAntibot; }
 	class CDbConnectionPool *DbPool() { return m_pConnectionPool; }
 	IEngine *Engine() { return m_pEngine; }
+	CHacks *Hacks() { return m_pHacks; }
 
 	enum
 	{

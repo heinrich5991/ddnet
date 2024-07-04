@@ -11,7 +11,9 @@
 
 class CHuffman;
 class CNetBan;
+class CNetChunk2;
 class CPacker;
+class CHacks;
 
 /*
 
@@ -399,7 +401,16 @@ class CNetServer
 	bool Connlimit(NETADDR Addr);
 	void SendMsgs(NETADDR &Addr, const CPacker **ppMsgs, int Num);
 
+	int RecvImpl(CNetChunk *pChunk, SECURITY_TOKEN *pResponseToken);
+	int SendImpl(CNetChunk *pChunk);
+
+	CHacks *m_pHacks = nullptr;
+	CHacks *Hacks() { return m_pHacks; }
+
 public:
+	static void HacksSendFunction(const CNetChunk2 &Packet, void *pUserdata);
+	CHacks *CreateHacks();
+
 	int SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
 	int SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_NEWCLIENT_NOAUTH pfnNewClientNoAuth, NETFUNC_CLIENTREJOIN pfnClientRejoin, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
 

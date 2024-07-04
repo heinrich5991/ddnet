@@ -3,6 +3,8 @@
 
 #include "server.h"
 
+#include <backcompat/hacks.h>
+
 #include <base/logger.h>
 #include <base/math.h>
 #include <base/system.h>
@@ -922,6 +924,12 @@ void CServer::DoSnapshot()
 			char aData[CSnapshot::MAX_SIZE];
 			CSnapshot *pData = (CSnapshot *)aData; // Fix compiler warning for strict-aliasing
 			int SnapshotSize = m_SnapshotBuilder.Finish(pData);
+			if(Hacks())
+			{
+				size_t SnapshotSize2 = SnapshotSize / 4;
+				Hacks()->OnSnap(i, rust::Slice((int *)pData, CSnapshot::MAX_SIZE / 4), SnapshotSize2);
+				SnapshotSize = SnapshotSize2 * 4;
+			}
 
 			if(m_aDemoRecorder[i].IsRecording())
 			{
@@ -2727,6 +2735,8 @@ int CServer::Run()
 #if defined(CONF_UPNP)
 	m_UPnP.Open(BindAddr);
 #endif
+
+	m_pHacks = m_NetServer.CreateHacks();
 
 	if(!m_Http.Init(std::chrono::seconds{2}))
 	{

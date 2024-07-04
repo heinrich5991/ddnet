@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "src/backcompat/hacks",
+  "src/backcompat/proxy",
   "src/base",
   "src/engine",
   "src/engine/shared",
