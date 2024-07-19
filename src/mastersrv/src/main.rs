@@ -695,6 +695,7 @@ fn handle_register(
             })?;
             Some(token)
         }
+        Protocol::Ddper17 => None,
     };
 
     let addr = register.address.with_ip(remote_addr);
@@ -722,17 +723,47 @@ fn handle_register(
             })
             .transpose()?;
 
-        let add_result = shared.lock_servers().add(
-            addr,
-            AddrInfo {
-                kind: EntryKind::Mastersrv,
-                ping_time: shared.timekeeper.now(),
-                location: shared.locations.lookup(addr.ip),
-                secret: register.secret,
-            },
-            register.info_serial,
-            raw_info.map(Cow::Owned),
-        );
+        let add_result;
+
+        {
+            let mut servers = shared.lock_servers();
+            let ping_time = shared.timekeeper.now();
+            let location = shared.locations.lookup(addr.ip);
+
+            add_result = servers.add(
+                addr,
+                AddrInfo {
+                    kind: EntryKind::Mastersrv,
+                    ping_time,
+                    location,
+                    secret: register.secret,
+                },
+                register.info_serial,
+                raw_info.map(Cow::Owned),
+            );
+
+            if addr.protocol == Protocol::Ddper17 {
+                match add_result {
+                    AddResult::Added | AddResult::Refreshed => {
+                        let mut v6_addr = addr;
+                        v6_addr.protocol = Protocol::V6;
+                        let _ = servers.add(
+                            v6_addr,
+                            AddrInfo {
+                                kind: EntryKind::Mastersrv,
+                                ping_time,
+                                location,
+                                secret: register.secret,
+                            },
+                            register.info_serial,
+                            None,
+                        );
+                    }
+                    AddResult::NeedInfo | AddResult::Obsolete => {}
+                }
+            }
+        }
+
         match add_result {
             AddResult::Added => debug!("successfully registered {}", addr),
             AddResult::Refreshed => {}
