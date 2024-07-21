@@ -11,7 +11,7 @@ pub enum Protocol {
     V5,
     V6,
     V7,
-    Ddper17,
+    Ddper6,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -42,7 +42,7 @@ pub struct UnknownProtocol;
 
 impl fmt::Display for UnknownProtocol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        "protocol must be one of tw-0.5+udp, tw-0.6+udp, tw-0.7+udp or ddper-17+udp".fmt(f)
+        "protocol must be one of tw-0.5+udp, tw-0.6+udp, tw-0.7+udp or ddper-0.6+udp".fmt(f)
     }
 }
 
@@ -54,7 +54,7 @@ impl FromStr for Protocol {
             "tw-0.5+udp" => V5,
             "tw-0.6+udp" => V6,
             "tw-0.7+udp" => V7,
-            "ddper-17+udp" => Ddper17,
+            "ddper-0.6+udp" => Ddper6,
             _ => return Err(UnknownProtocol),
         })
     }
@@ -75,7 +75,7 @@ impl<'de> serde::de::Visitor<'de> for ProtocolVisitor {
     type Value = Protocol;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("one of \"tw-0.5+udp\", \"tw-0.6+udp\", \"tw-0.7+udp\" and \"ddper-17+udp\"")
+        f.write_str("one of \"tw-0.5+udp\", \"tw-0.6+udp\", \"tw-0.7+udp\" and \"ddper-0.6+udp\"")
     }
     fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Protocol, E> {
         let invalid_value = || E::invalid_value(serde::de::Unexpected::Str(v), &self);
@@ -99,7 +99,7 @@ impl Protocol {
             V5 => "tw-0.5+udp",
             V6 => "tw-0.6+udp",
             V7 => "tw-0.7+udp",
-            Ddper17 => "ddper-17+udp",
+            Ddper6 => "ddper-0.6+udp",
         }
     }
 }

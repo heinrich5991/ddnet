@@ -695,7 +695,7 @@ fn handle_register(
             })?;
             Some(token)
         }
-        Protocol::Ddper17 => None,
+        Protocol::Ddper6 => None,
     };
 
     let addr = register.address.with_ip(remote_addr);
@@ -742,7 +742,7 @@ fn handle_register(
                 raw_info.map(Cow::Owned),
             );
 
-            if addr.protocol == Protocol::Ddper17 {
+            if addr.protocol == Protocol::Ddper6 {
                 match add_result {
                     AddResult::Added | AddResult::Refreshed => {
                         let mut v6_addr = addr;
