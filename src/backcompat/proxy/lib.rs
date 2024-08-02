@@ -1,6 +1,9 @@
+#![allow(unused_variables)]
+
 use arrayvec::ArrayVec;
 
-mod ddnet;
+//mod ddnet;
+mod max_clients;
 
 pub trait Send {
     fn send(&mut self, unreliable: bool) -> &mut ArrayVec<[u8; 2048]>;
@@ -21,6 +24,6 @@ pub trait Proxy {
     }
 }
 
-pub fn create_ddnet(client_version: i32) -> Option<Box<dyn Proxy>> {
-    self::ddnet::Proxy::new(client_version).map(|p| Box::new(p) as Box<_>)
+pub fn create_ddnet() -> Box<dyn Proxy> {
+    Box::new(self::max_clients::Proxy::new())
 }

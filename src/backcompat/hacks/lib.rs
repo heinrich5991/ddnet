@@ -113,7 +113,7 @@ impl Hacks {
         if client_id <= self.proxies.len() {
             self.proxies.resize_with(client_id + 1, || None);
         }
-        self.proxies[client_id] = ddnet_backcompat_proxy::create_ddnet(123); // TODO
+        self.proxies[client_id] = Some(ddnet_backcompat_proxy::create_ddnet()); // TODO
     }
     pub fn on_disconnect(&mut self, client_id: i32) {
         if let Some(proxy) = self.proxies.get_mut(usize::try_from(client_id).unwrap()) {
@@ -163,8 +163,8 @@ impl Hacks {
             let result = proxy.translate_server_packet(
                 data,
                 if flags & NETSENDFLAG_VITAL == 0 { true } else { false },
-                &mut SendCallback { client_id, buffer: &mut self.recv_buffer },
                 &mut SendCallback { client_id, buffer: &mut self.send_buffer },
+                &mut SendCallback { client_id, buffer: &mut self.recv_buffer },
             );
             if !result {
                 self.flush_send_buffer();
@@ -178,7 +178,14 @@ impl Hacks {
         }
     }
     pub fn on_snap(&mut self, client_id: i32, snap_buffer: &mut [i32], snap_size: &mut usize) {
-        let _ = (client_id, snap_buffer, snap_size);
+        if let Some(Some(proxy)) = self.proxies.get_mut(usize::try_from(client_id).unwrap()) {
+            *snap_size = proxy.translate_server_snap(
+                snap_buffer,
+                *snap_size,
+            );
+        } else {
+            // Do nothing.
+        }
     }
     //pub fn create_delta_server(&mut self, PeerId: i32, pFrom: &[i32], pTo: &[i32], pDelta: &mut [i32]) -> usize {
     //}

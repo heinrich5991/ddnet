@@ -838,6 +838,7 @@ set_glob(RUST_BACKCOMPAT GLOB_RECURSE "rs;toml" src/backcompat
   proxy/Cargo.toml
   proxy/ddnet.rs
   proxy/lib.rs
+  proxy/max_clients.rs
 )
 
 set_glob(RUST_BASE GLOB_RECURSE "rs;toml" src/base
@@ -943,7 +944,7 @@ set(RUST_SRC
       Cargo.toml
       Cargo.lock
 )
-set(RUST_TARGETS engine_shared hacks)
+set(RUST_TARGETS engine_shared backcompat_hacks)
 if(NOT CMAKE_OSX_ARCHITECTURES)
   set(RUST_OUTPUTS)
   foreach(rust_target ${RUST_TARGETS})
@@ -2636,7 +2637,7 @@ if(SERVER)
     ${MYSQL_LIBRARIES}
     ${TARGET_ANTIBOT}
     rust_engine_shared
-    rust_hacks
+    rust_backcompat_hacks
 
     ${LIBS}
   )

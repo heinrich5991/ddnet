@@ -1,6 +1,6 @@
 [package]
 name = "ddnet-backcompat-proxy"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 [lib]
@@ -10,4 +10,5 @@ path = "lib.rs"
 arrayvec = "0.5.2"
 libtw2-gamenet = { package = "libtw2-gamenet-ddnet", path = "../../../../libtw2/gamenet/ddnet" }
 libtw2-packer = { path = "../../../../libtw2/packer" }
+libtw2-snapshot = { path = "../../../../libtw2/snapshot" }
 warn = "0.2.0"

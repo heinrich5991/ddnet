@@ -76,11 +76,12 @@ dependencies = [
 
 [[package]]
 name = "ddnet-backcompat-proxy"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "arrayvec",
  "libtw2-gamenet-ddnet",
  "libtw2-packer",
+ "libtw2-snapshot",
  "warn",
 ]
 
@@ -172,6 +173,20 @@ dependencies = [
  "buffer",
  "libtw2-common",
  "uuid",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-snapshot"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "libtw2-common",
+ "libtw2-gamenet-common",
+ "libtw2-gamenet-snap",
+ "libtw2-packer",
+ "uuid",
+ "vec_map",
  "warn",
 ]
 
@@ -279,6 +294,12 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "vec_map"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "warn"
