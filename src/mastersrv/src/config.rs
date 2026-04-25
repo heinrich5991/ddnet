@@ -26,6 +26,7 @@ pub struct Config {
     community_tokens: HashMap<community_token::PlainPrefix, CommunityToken>,
     default_ban_message: Option<Box<str>>,
     bans: Box<[Ban]>,
+    ban_exemptions: Box<[ConfigAddr]>,
     port_forward_check_exceptions: Box<[ConfigAddr]>,
     pub locations: Locations,
 }
@@ -44,6 +45,8 @@ struct ParsedConfig {
     default_ban_message: Option<Box<str>>,
     #[serde(default)]
     bans: Box<[Ban]>,
+    #[serde(default)]
+    ban_exemptions: Box<[ConfigAddr]>,
     #[serde(default)]
     port_forward_check_exceptions: Box<[ConfigAddr]>,
     #[serde(default)]
@@ -93,13 +96,19 @@ impl Config {
     pub fn read(filename: &Path) -> Result<Config, Error> {
         ParsedConfig::read(filename)?.to_config()
     }
-    pub fn is_banned(&self, addr: Addr) -> Option<Option<&str>> {
+    fn has_ban(&self, addr: Addr) -> Option<Option<&str>> {
         for ban in &self.bans {
             if ban.address.matches(addr) {
                 return Some(ban.reason.as_deref().or(self.default_ban_message.as_deref()));
             }
         }
         None
+    }
+    fn has_ban_exemption(&self, addr: Addr) -> bool {
+        self.ban_exemptions.iter().any(|exemption| exemption.matches(addr))
+    }
+    pub fn is_banned(&self, addr: Addr) -> Option<Option<&str>> {
+        self.has_ban(addr).filter(|_| !self.has_ban_exemption(addr))
     }
     pub fn is_exempt_from_port_forward_check(&self, addr: Addr) -> bool {
         self.port_forward_check_exceptions
@@ -195,6 +204,7 @@ impl ParsedConfig {
             communities,
             default_ban_message,
             bans,
+            ban_exemptions,
             port_forward_check_exceptions,
             locations,
         } = self;
@@ -210,6 +220,7 @@ impl ParsedConfig {
                 .unwrap_or_default(),
             default_ban_message: default_ban_message.map(Into::into),
             bans,
+            ban_exemptions,
             port_forward_check_exceptions,
             locations: locations
                 .as_deref()
