@@ -3707,13 +3707,11 @@ set(CPACK_SOURCE_FILES
   datasrc/
   ddnet-libs/
   license.txt
-  lsan.supp
   memcheck.supp
   other/
   scripts/
   src/
   storage.cfg
-  ubsan.supp
   valgrind.supp
   # tidy-alphabetical-end
 )
