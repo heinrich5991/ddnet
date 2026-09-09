@@ -794,7 +794,7 @@ void CTeeHistorian::RecordAuthLogin(int ClientId, const char *pRoleName, const c
 	CTeehistorianPacker Buffer;
 	Buffer.Reset();
 	Buffer.AddInt(ClientId);
-	Buffer.AddString(pRoleName);
+	Buffer.AddString(pRoleName, 0);
 	Buffer.AddString(pAuthName, 0);
 
 	if(m_Debug)
