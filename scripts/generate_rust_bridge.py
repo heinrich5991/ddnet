@@ -34,7 +34,9 @@ def find_cxxbridge(version):
 
 FILES = {
 	"src/engine/shared/rust_version.rs": "src/rust-bridge/engine/shared/rust_version",
-	"src/engine/server/lib.rs": "src/rust-bridge/server/lib",
+	"src/engine/server/asdf.rs": "src/rust-bridge/engine/server/asdf",
+
+	"src/base/net.rs": "src/rust-bridge/cpp/net",
 	"src/engine/console.rs": "src/rust-bridge/cpp/console",
 }
 

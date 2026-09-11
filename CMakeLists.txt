@@ -1008,6 +1008,13 @@ set_glob(RUST_ENGINE_INTERFACE GLOB "rs;toml" src/engine
   # tidy-alphabetical-end
 )
 
+set_glob(RUST_ENGINE_SERVER GLOB_RECURSE "rs;toml" src/engine/server
+  # tidy-alphabetical-start
+  Cargo.toml
+  lib.rs
+  # tidy-alphabetical-end
+)
+
 set_glob(RUST_ENGINE_SHARED GLOB_RECURSE "rs;toml" src/engine/shared
   # tidy-alphabetical-start
   Cargo.toml
@@ -1022,6 +1029,10 @@ set_src(RUST_BRIDGE_SHARED GLOB_RECURSE src/rust-bridge
   # tidy-alphabetical-start
   cpp/console.cpp
   cpp/console.h
+  cpp/net.cpp
+  cpp/net.h
+  engine/server/asdf.cpp
+  engine/server/asdf.h
   engine/shared/rust_version.cpp
   engine/shared/rust_version.h
   # tidy-alphabetical-end
@@ -1128,11 +1139,12 @@ endif()
 set(RUST_SRC
       ${RUST_BASE}
       ${RUST_ENGINE_INTERFACE}
+      ${RUST_ENGINE_SERVER}
       ${RUST_ENGINE_SHARED}
       Cargo.toml
       Cargo.lock
 )
-set(RUST_TARGETS engine_shared)
+set(RUST_TARGETS engine_server engine_shared)
 if(NOT CMAKE_OSX_ARCHITECTURES OR TARGET_OS STREQUAL "ios")
   set(RUST_OUTPUTS)
   foreach(rust_target ${RUST_TARGETS})
@@ -3211,6 +3223,8 @@ if(SERVER)
 
     ${LIBS}
   )
+  list(REMOVE_ITEM LIBS_SERVER rust_engine_shared)
+  list(APPEND LIBS_SERVER rust_engine_server)
 
   add_library(game-server-without-main OBJECT
       ${DEPS}
